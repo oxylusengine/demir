@@ -1,0 +1,11 @@
+[package]
+name = "demirc"
+edition = "2024"
+resolver = "3"
+
+[[bin]]
+name = "demirc"
+path = "src/main.rs"
+
+[dependencies]
+lexer = { path = "../demir/lexer" }
