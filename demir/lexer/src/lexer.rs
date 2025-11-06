@@ -2,7 +2,6 @@ use super::token::{Location, Position, Token};
 
 pub struct Lexer<'a> {
     buffer_view: &'a str,
-    peeked: Option<(Token<'a>, Location)>,
     offset: usize,
     line: usize,
     line_offset: usize,
@@ -12,7 +11,6 @@ impl<'a> Lexer<'a> {
     pub fn new(buffer_view: &'a str) -> Self {
         Self {
             buffer_view,
-            peeked: None,
             offset: 0,
             line: 0,
             line_offset: 0,

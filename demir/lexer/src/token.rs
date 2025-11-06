@@ -18,12 +18,35 @@ pub enum Token<'a> {
     BraceRight, // }
 
     /// Literals
-    IntegerLiteral,
-    FloatingPointLiteral,
+    IntegerLiteral(&'a str),
+    FloatingPointLiteral(&'a str),
     StringLiteral(&'a str),
 
-    LineComment,
-    BlockComment,
+    LineComment(&'a str),
+    BlockComment(&'a str),
+}
+
+impl std::fmt::Display for Token<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Token::Eof => write!(f, "eof"),
+            Token::Identifier(s) => write!(f, "{s}"),
+            Token::Null => write!(f, "null"),
+            Token::Var => write!(f, "var"),
+            Token::Fn => write!(f, "fn"),
+            Token::Slash => write!(f, "/"),
+            Token::Semicolon => write!(f, ";"),
+            Token::ParenLeft => write!(f, "("),
+            Token::ParenRight => write!(f, ")"),
+            Token::BraceLeft => write!(f, "{{"),
+            Token::BraceRight => write!(f, "}}"),
+            Token::IntegerLiteral(s) => write!(f, "{}", s),
+            Token::FloatingPointLiteral(s) => write!(f, "{}", s),
+            Token::StringLiteral(s) => write!(f, "{}", s),
+            Token::LineComment(s) => write!(f, "{}", s),
+            Token::BlockComment(s) => write!(f, "{}", s),
+        }
+    }
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -45,4 +68,3 @@ pub struct Location {
 impl Location {
     pub fn new(begin: Position, end: Position) -> Self { Self { begin, end } }
 }
-
