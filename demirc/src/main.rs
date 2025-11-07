@@ -3,6 +3,7 @@ use parser::Parser;
 fn main() {
     let input = r#"
 fn main() {
+    2 + 2;
     println("hello world");
 }
 "#;

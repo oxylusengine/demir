@@ -76,7 +76,10 @@ impl<'a> Parser<'a> {
 
         match token {
             Token::Fn => self.parse_decl_function_stmt(),
-            Token::Identifier(_) => self.parse_expr_stmt(),
+            Token::Identifier(_)
+            | Token::IntegerLiteral(_)
+            | Token::FloatingPointLiteral(_)
+            | Token::StringLiteral(_) => self.parse_expr_stmt(),
             _ => Err(ParseError::invalid_token(location)),
         }
     }
@@ -193,8 +196,10 @@ impl<'a> Parser<'a> {
         let (token, location) = self.peek().ok_or(ParseError::end_of_file())?;
         match token {
             Token::Identifier(_) => self.parse_identifier_expr(),
-            Token::StringLiteral(_) => self.parse_literal_expr(),
-            _ => Err(ParseError::unexpected("an expression", token, location)),
+            Token::IntegerLiteral(_) | Token::FloatingPointLiteral(_) | Token::StringLiteral(_) => {
+                self.parse_literal_expr()
+            },
+            _ => Err(ParseError::unexpected("a prefix expression", token, location)),
         }
     }
 
@@ -241,6 +246,8 @@ impl<'a> Parser<'a> {
         let (token, location) = self.advance()?;
 
         let literal = match token {
+            Token::IntegerLiteral(s) => Literal::Integer(s.parse::<i64>().unwrap()),
+            Token::FloatingPointLiteral(s) => Literal::Float(s.parse::<f64>().unwrap()),
             Token::StringLiteral(s) => Literal::String(s.to_string()),
             _ => return Err(ParseError::unexpected("a literal", token, location)),
         };
