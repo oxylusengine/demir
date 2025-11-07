@@ -53,6 +53,8 @@ impl<'a> Lexer<'a> {
     }
 
     fn consume_number(&mut self) -> Token<'a> {
+        let start_offset = self.offset;
+
         let mut has_dot = false;
         let mut has_digits_after_dot = false;
         loop {
@@ -83,10 +85,11 @@ impl<'a> Lexer<'a> {
             panic!()
         }
 
+        let literal_str = &self.buffer_view[start_offset..self.offset];
         if has_dot {
-            Token::FloatingPointLiteral
+            Token::FloatingPointLiteral(literal_str)
         } else {
-            Token::IntegerLiteral
+            Token::IntegerLiteral(literal_str)
         }
     }
 
@@ -134,9 +137,155 @@ impl<'a> Lexer<'a> {
         let start_pos = self.position();
         let c = self.peek(0);
         let token = match c {
+            '=' => {
+                self.consume();
+                match self.peek(0) {
+                    '=' => {
+                        self.consume();
+                        Token::CompareEqual
+                    },
+                    '>' => {
+                        self.consume();
+                        Token::ShipRight
+                    },
+                    _ => Token::Equal,
+                }
+            },
+            '+' => {
+                self.consume();
+                if self.peek(0) == '=' {
+                    self.consume();
+                    Token::AddEqual
+                } else {
+                    Token::Add
+                }
+            },
+            '-' => {
+                self.consume();
+                match self.peek(0) {
+                    '=' => {
+                        self.consume();
+                        Token::SubEqual
+                    },
+                    '>' => {
+                        self.consume();
+                        Token::Arrow
+                    },
+                    _ => Token::Sub,
+                }
+            },
+            '*' => {
+                self.consume();
+                if self.peek(0) == '=' {
+                    self.consume();
+                    Token::MulEqual
+                } else {
+                    Token::Mul
+                }
+            },
             '/' => {
                 self.consume();
-                Token::Slash
+                match self.peek(0) {
+                    '=' => {
+                        self.consume();
+                        Token::DivEqual
+                    },
+                    '/' => {
+                        todo!()
+                        // return self.consume_line_comment();
+                    },
+                    '*' => {
+                        todo!()
+                        //return self.consume
+                    },
+                    _ => Token::Div,
+                }
+            },
+            '.' => {
+                self.consume();
+                if self.peek(0) == '.' {
+                    self.consume();
+                    match self.peek(0) {
+                        '=' => {
+                            self.consume();
+                            Token::RangeEqual
+                        },
+                        '.' => {
+                            self.consume();
+                            Token::Ellipsis
+                        },
+                        _ => Token::Range,
+                    }
+                } else {
+                    Token::Dot
+                }
+            },
+            '<' => {
+                self.consume();
+                match self.peek(0) {
+                    '=' => {
+                        self.consume();
+                        Token::LessEqual
+                    },
+                    '<' => {
+                        self.consume();
+                        Token::ShiftLeft
+                    },
+                    _ => Token::AngleLeft,
+                }
+            },
+            '>' => {
+                self.consume();
+                match self.peek(0) {
+                    '=' => {
+                        self.consume();
+                        Token::GreaterEqual
+                    },
+                    '>' => {
+                        self.consume();
+                        Token::ShiftRight
+                    },
+                    _ => Token::AngleRight,
+                }
+            },
+            '&' => {
+                self.consume();
+                if self.peek(0) == '&' {
+                    self.consume();
+                    Token::LogicalAnd
+                } else {
+                    Token::BitAnd
+                }
+            },
+            '|' => {
+                self.consume();
+                if self.peek(0) == '|' {
+                    self.consume();
+                    Token::LogicalOr
+                } else {
+                    Token::BitOr
+                }
+            },
+            '!' => {
+                self.consume();
+                if self.peek(0) == '=' {
+                    self.consume();
+                    Token::CompareNotEqual
+                } else {
+                    Token::Exclaim
+                }
+            },
+            '%' => {
+                self.consume();
+                Token::Modulo
+            },
+            ',' => {
+                self.consume();
+                Token::Comma
+            },
+            ':' => {
+                self.consume();
+                Token::Colon
             },
             ';' => {
                 self.consume();
@@ -157,6 +306,46 @@ impl<'a> Lexer<'a> {
             '}' => {
                 self.consume();
                 Token::BraceRight
+            },
+            '[' => {
+                self.consume();
+                Token::SquareLeft
+            },
+            ']' => {
+                self.consume();
+                Token::SquareRight
+            },
+            '^' => {
+                self.consume();
+                Token::BitXor
+            },
+            '~' => {
+                self.consume();
+                Token::BitNot
+            },
+            '\\' => {
+                self.consume();
+                Token::Backslash
+            },
+            '?' => {
+                self.consume();
+                Token::Question
+            },
+            '#' => {
+                self.consume();
+                Token::Hash
+            },
+            '\'' => {
+                self.consume();
+                Token::SingleQuote
+            },
+            '@' => {
+                self.consume();
+                Token::At
+            },
+            '$' => {
+                self.consume();
+                Token::Dollar
             },
             '"' => self.consume_string_literal(),
             c if c.is_ascii_alphabetic() => self.consume_identifier(),

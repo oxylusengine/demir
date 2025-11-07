@@ -1,4 +1,4 @@
-use lexer::token::{Location, Token};
+use lexer::token::Location;
 
 #[derive(Clone, Debug)]
 pub enum ParseErrorKind {
@@ -26,9 +26,16 @@ pub struct ParseError {
 }
 
 impl ParseError {
-    pub fn end_of_file(location: Location) -> Self {
+    pub fn end_of_file() -> Self {
         Self {
             kind: ParseErrorKind::EndOfFile,
+            location: Location::default(),
+        }
+    }
+
+    pub fn invalid_token(location: Location) -> Self {
+        Self {
+            kind: ParseErrorKind::InvalidToken,
             location,
         }
     }
@@ -45,5 +52,8 @@ impl ParseError {
 }
 
 impl std::fmt::Display for ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.kind) }
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let begin = self.location.begin;
+        write!(f, "Parser error at {}:{}: {}", begin.line, begin.col, self.kind)
+    }
 }

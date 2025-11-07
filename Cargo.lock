@@ -10,7 +10,7 @@ version = "1.0.0"
 name = "demirc"
 version = "0.0.0"
 dependencies = [
- "lexer",
+ "parser",
 ]
 
 [[package]]

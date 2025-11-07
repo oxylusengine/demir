@@ -8,4 +8,4 @@ name = "demirc"
 path = "src/main.rs"
 
 [dependencies]
-lexer = { path = "../demir/lexer" }
+parser = { path = "../demir/parser" }

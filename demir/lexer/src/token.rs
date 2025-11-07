@@ -5,23 +5,69 @@ pub enum Token<'a> {
     /// End of the lexing file
     Eof,
     Identifier(&'a str),
+
     /// Keywords
     Null,
     Var,
     Fn,
-    /// Punctuators
-    Slash, // /
-    Semicolon,  // ;
-    ParenLeft,  // (
-    ParenRight, // )
-    BraceLeft,  // {
-    BraceRight, // }
+
+    /// Punctuators - Single character
+    Equal, // =
+    Add,         // +
+    Sub,         // -
+    Mul,         // *
+    Div,         // /
+    Comma,       // ,
+    Dot,         // .
+    Colon,       // :
+    Semicolon,   // ;
+    Backslash,   // \
+    Exclaim,     // !
+    Question,    // ?
+    Hash,        // #
+    Modulo,      // %
+    ParenLeft,   // (
+    ParenRight,  // )
+    BraceLeft,   // {
+    BraceRight,  // }
+    SquareLeft,  // [
+    SquareRight, // ]
+    AngleLeft,   //
+    AngleRight,  // >
+    BitAnd,      // &
+    BitXor,      // ^
+    BitOr,       // |
+    BitNot,      // ~
+    SingleQuote, // '
+    Quote,       // "
+    At,          // @
+    Dollar,      // $
+
+    /// Punctuators - Multi character
+    Range, // ..
+    RangeEqual,      // ..=
+    Ellipsis,        // ...
+    AddEqual,        // +=
+    SubEqual,        // -=
+    MulEqual,        // *=
+    DivEqual,        // /=
+    GreaterEqual,    // >=
+    LessEqual,       // <=
+    Arrow,           // ->
+    ShipRight,       // =>
+    LogicalAnd,      // &&
+    LogicalOr,       // ||
+    CompareEqual,    // ==
+    CompareNotEqual, // !=
+    ShiftLeft,       //
+    ShiftRight,      // >>
 
     /// Literals
     IntegerLiteral(&'a str),
     FloatingPointLiteral(&'a str),
     StringLiteral(&'a str),
 
+    /// Comments
     LineComment(&'a str),
     BlockComment(&'a str),
 }
@@ -31,20 +77,71 @@ impl std::fmt::Display for Token<'_> {
         match self {
             Token::Eof => write!(f, "eof"),
             Token::Identifier(s) => write!(f, "{s}"),
+
+            // Keywords
             Token::Null => write!(f, "null"),
             Token::Var => write!(f, "var"),
             Token::Fn => write!(f, "fn"),
-            Token::Slash => write!(f, "/"),
+
+            // Single character punctuators
+            Token::Equal => write!(f, "="),
+            Token::Add => write!(f, "+"),
+            Token::Sub => write!(f, "-"),
+            Token::Mul => write!(f, "*"),
+            Token::Div => write!(f, "/"),
+            Token::Comma => write!(f, ","),
+            Token::Dot => write!(f, "."),
+            Token::Colon => write!(f, ":"),
             Token::Semicolon => write!(f, ";"),
+            Token::Backslash => write!(f, "\\"),
+            Token::Exclaim => write!(f, "!"),
+            Token::Question => write!(f, "?"),
+            Token::Hash => write!(f, "#"),
+            Token::Modulo => write!(f, "%"),
             Token::ParenLeft => write!(f, "("),
             Token::ParenRight => write!(f, ")"),
             Token::BraceLeft => write!(f, "{{"),
             Token::BraceRight => write!(f, "}}"),
-            Token::IntegerLiteral(s) => write!(f, "{}", s),
-            Token::FloatingPointLiteral(s) => write!(f, "{}", s),
-            Token::StringLiteral(s) => write!(f, "{}", s),
-            Token::LineComment(s) => write!(f, "{}", s),
-            Token::BlockComment(s) => write!(f, "{}", s),
+            Token::SquareLeft => write!(f, "["),
+            Token::SquareRight => write!(f, "]"),
+            Token::AngleLeft => write!(f, "<"),
+            Token::AngleRight => write!(f, ">"),
+            Token::BitAnd => write!(f, "&"),
+            Token::BitXor => write!(f, "^"),
+            Token::BitOr => write!(f, "|"),
+            Token::BitNot => write!(f, "~"),
+            Token::SingleQuote => write!(f, "'"),
+            Token::Quote => write!(f, "\""),
+            Token::At => write!(f, "@"),
+            Token::Dollar => write!(f, "$"),
+
+            // Multi-character punctuators
+            Token::Range => write!(f, ".."),
+            Token::RangeEqual => write!(f, "..="),
+            Token::Ellipsis => write!(f, "..."),
+            Token::AddEqual => write!(f, "+="),
+            Token::SubEqual => write!(f, "-="),
+            Token::MulEqual => write!(f, "*="),
+            Token::DivEqual => write!(f, "/="),
+            Token::GreaterEqual => write!(f, ">="),
+            Token::LessEqual => write!(f, "<="),
+            Token::Arrow => write!(f, "->"),
+            Token::ShipRight => write!(f, "=>"),
+            Token::LogicalAnd => write!(f, "&&"),
+            Token::LogicalOr => write!(f, "||"),
+            Token::CompareEqual => write!(f, "=="),
+            Token::CompareNotEqual => write!(f, "!="),
+            Token::ShiftLeft => write!(f, "<<"),
+            Token::ShiftRight => write!(f, ">>"),
+
+            // Literals
+            Token::IntegerLiteral(s) => write!(f, "{s}"),
+            Token::FloatingPointLiteral(s) => write!(f, "{s}"),
+            Token::StringLiteral(s) => write!(f, "{s}"),
+
+            // Comments
+            Token::LineComment(s) => write!(f, "{s}"),
+            Token::BlockComment(s) => write!(f, "{s}"),
         }
     }
 }

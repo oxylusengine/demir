@@ -1,15 +1,16 @@
-use lexer::tokenize;
+use parser::Parser;
 
 fn main() {
     let input = r#"
 fn main() {
-    println("hello
-    multiline strings");
+    println("hello world");
 }
 "#;
 
-    let tokens = tokenize(input);
-    tokens.iter().for_each(|x| {
-        println!("{:?}", x);
-    });
+    let mut parser = Parser::new(input);
+    let root_statement = parser.parse();
+    match root_statement {
+        Ok(_) => println!("{:?}", root_statement),
+        Err(e) => println!("{}", e),
+    };
 }
