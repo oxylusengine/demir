@@ -1,3 +1,6 @@
+pub mod lowering;
+pub mod symbol_map;
+
 #[derive(Debug, Clone)]
 pub enum Statement {
     Multi(Vec<Statement>),
