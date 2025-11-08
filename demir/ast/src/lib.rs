@@ -8,6 +8,12 @@ pub enum Statement {
         body: Box<Statement>,
     },
 
+    DeclVar {
+        identifier: Identifier,
+        type_expr: Option<Expression>,
+        initial_expr: Option<Expression>,
+    },
+
     Expression(Expression),
 }
 
@@ -17,13 +23,13 @@ pub enum Expression {
     Identifier(Identifier),
     Assign {
         kind: AssignmentKind,
-        lhs: Box<Expression>,
-        rhs: Box<Expression>,
+        lhs_expr: Box<Expression>,
+        rhs_expr: Box<Expression>,
     },
     Binary {
         op: BinaryOp,
-        lhs: Box<Expression>,
-        rhs: Box<Expression>,
+        lhs_expr: Box<Expression>,
+        rhs_expr: Box<Expression>,
     },
     CallFunction {
         callee: Box<Expression>,

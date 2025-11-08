@@ -75,6 +75,7 @@ impl<'a> Parser<'a> {
         let (token, location) = self.peek().ok_or(ParseError::end_of_file())?;
 
         match token {
+            Token::Var => self.parse_decl_var_stmt(),
             Token::Fn => self.parse_decl_function_stmt(),
             Token::Identifier(_)
             | Token::IntegerLiteral(_)
@@ -89,6 +90,31 @@ impl<'a> Parser<'a> {
         self.expect_next(Token::Semicolon)?;
 
         Ok(Statement::Expression(lhs_expr))
+    }
+
+    fn parse_decl_var_stmt(&mut self) -> ParseResult<Statement> {
+        self.expect_next(Token::Var)?;
+        let identifier = self.parse_identifier()?;
+
+        let mut type_expr = Option::None;
+        if self.peek_is(Token::Colon) {
+            self.advance()?;
+            type_expr = Some(self.parse_identifier_expr()?);
+        }
+
+        let mut initial_expr = Option::None;
+        if self.peek_is(Token::Equal) {
+            self.advance()?;
+            initial_expr = Some(self.parse_expr(Precedence::default())?);
+        }
+
+        self.expect_next(Token::Semicolon)?;
+
+        Ok(Statement::DeclVar {
+            identifier,
+            type_expr,
+            initial_expr,
+        })
     }
 
     fn parse_decl_function_stmt(&mut self) -> ParseResult<Statement> {
@@ -177,14 +203,14 @@ impl<'a> Parser<'a> {
             expression = if first_precedence == Precedence::Assignment {
                 Expression::Assign {
                     kind: assign_kind?,
-                    lhs: Box::new(expression),
-                    rhs: Box::new(rhs_expression),
+                    lhs_expr: Box::new(expression),
+                    rhs_expr: Box::new(rhs_expression),
                 }
             } else {
                 Expression::Binary {
                     op: binary_op?,
-                    lhs: Box::new(expression),
-                    rhs: Box::new(rhs_expression),
+                    lhs_expr: Box::new(expression),
+                    rhs_expr: Box::new(rhs_expression),
                 }
             };
         }
