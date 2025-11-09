@@ -55,10 +55,7 @@ pub enum IrNode {
     LogicalNot(IrNodeId),
 
     // Control flow
-    Label {
-        instructions: Vec<IrNodeId>,
-        terminator: Option<IrNodeId>,
-    },
+    Label(Vec<IrNodeId>),
     Return(Option<IrNodeId>),
     Branch(IrNodeId),
     ConditionalBranch {
@@ -92,7 +89,11 @@ pub enum IrConstant {
     String(String),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+impl IrConstant {
+    pub fn from_bool(b: bool) -> Self { if b { IrConstant::True } else { IrConstant::False } }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum IrType {
     Void,
     Int,
@@ -105,4 +106,3 @@ pub enum IrType {
         return_type: Box<IrType>,
     },
 }
-

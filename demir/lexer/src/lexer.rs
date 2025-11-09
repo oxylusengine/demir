@@ -39,7 +39,7 @@ impl<'a> Lexer<'a> {
         let start_offset = self.offset;
 
         self.consume();
-        while self.peek(0).is_ascii_alphabetic() {
+        while self.peek(0).is_ascii_alphanumeric() || self.peek(0) == '_' {
             self.consume();
         }
 
@@ -196,7 +196,7 @@ impl<'a> Lexer<'a> {
                     },
                     '*' => {
                         todo!()
-                        //return self.consume
+                        // return self.consume
                     },
                     _ => Token::Div,
                 }

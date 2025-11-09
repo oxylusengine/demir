@@ -75,6 +75,7 @@ impl<'a> Parser<'a> {
         let (token, location) = self.peek().ok_or(ParseError::end_of_file())?;
 
         match token {
+            Token::BraceLeft => self.parse_multi_stmt(),
             Token::Var => self.parse_decl_var_stmt(),
             Token::Fn => self.parse_decl_function_stmt(),
             Token::Identifier(_)

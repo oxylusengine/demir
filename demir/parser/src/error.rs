@@ -57,3 +57,5 @@ impl std::fmt::Display for ParseError {
         write!(f, "Parser error at {}:{}: {}", begin.line, begin.col, self.kind)
     }
 }
+
+impl std::error::Error for ParseError {}

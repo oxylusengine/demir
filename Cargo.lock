@@ -14,6 +14,7 @@ name = "demirc"
 version = "0.0.0"
 dependencies = [
  "parser",
+ "sema",
 ]
 
 [[package]]
@@ -35,3 +36,10 @@ dependencies = [
 [[package]]
 name = "runtime"
 version = "1.0.0"
+
+[[package]]
+name = "sema"
+version = "1.0.0"
+dependencies = [
+ "ast",
+]

@@ -1,5 +1,4 @@
 pub mod lowering;
-pub mod symbol_map;
 
 #[derive(Debug, Clone)]
 pub enum Statement {
@@ -40,8 +39,12 @@ pub enum Expression {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Identifier(pub String); // TODO: Maybe have an inner string table in the future
+
+impl std::fmt::Display for Identifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.0) }
+}
 
 #[derive(Clone, Debug)]
 pub enum Literal {

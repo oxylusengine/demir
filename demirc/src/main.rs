@@ -1,18 +1,19 @@
 use parser::Parser;
+use sema::{self};
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input = r#"
 fn main() {
     var foo = 2;
-    foo = foo + 2;
-    println("hello world");
 }
 "#;
 
     let mut parser = Parser::new(input);
-    let root_statement = parser.parse();
-    match root_statement {
-        Ok(_) => println!("{:?}", root_statement),
-        Err(e) => println!("{}", e),
-    };
+    let root_statement = parser.parse()?;
+
+    println!("{:?}", root_statement);
+
+    sema::analyze(root_statement)?;
+
+    Ok(())
 }
