@@ -3,15 +3,19 @@ use sema::{self};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input = r#"
-fn main() {
-    var foo = 2;
+fn func(foo: i32) -> i32 {
 }
+
+fn main() {
+    var real: f32;
+    var foo = 2;
+    foo = func(real);
+}
+
 "#;
 
     let mut parser = Parser::new(input);
     let root_statement = parser.parse()?;
-
-    println!("{:?}", root_statement);
 
     sema::analyze(root_statement)?;
 

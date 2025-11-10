@@ -1,51 +1,22 @@
 mod error;
 mod symbol_table;
 
-use ast::{BinaryOp, Expression, FunctionParam, Identifier, Literal, Statement};
+use ast::{AssignmentKind, BinaryOp, Expression, FunctionParam, Identifier, Literal, Statement};
+use ir::types::BuiltinType;
 
 use crate::{error::SemaError, symbol_table::SymbolTable};
 
 #[derive(Debug, Clone)]
-struct SymbolInfo {
-    ty: ResolvedType,
-    kind: SymbolKind,
-}
-
-#[derive(Debug, Clone)]
 enum SymbolKind {
-    Variable { is_mutable: bool },
-    Function,
-    Parameter,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-enum ResolvedType {
-    Void,
-    Int,
-    Float,
-    Bool,
-    String,
-    Function {
-        params: Vec<ResolvedType>,
-        return_type: Box<ResolvedType>,
-    },
-}
-
-impl std::fmt::Display for ResolvedType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ResolvedType::Void => write!(f, "void"),
-            ResolvedType::Int => write!(f, "i32"),
-            ResolvedType::Float => write!(f, "f32"),
-            ResolvedType::Bool => write!(f, "bool"),
-            ResolvedType::String => write!(f, "str"),
-            ResolvedType::Function { .. } => write!(f, "function"),
-        }
-    }
+    Literal,
+    Variable { identifier: Identifier, is_mutable: bool },
+    Function(Identifier),
+    Parameter(Identifier),
+    Aliasing,
 }
 
 struct SemanticAnalyzer {
-    symbols: SymbolTable<Identifier, SymbolInfo>,
+    symbols: SymbolTable<Identifier, (SymbolKind, BuiltinType)>,
 }
 
 impl SemanticAnalyzer {
@@ -55,61 +26,110 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn literal_type(&self, lit: &Literal) -> ResolvedType {
-        match lit {
-            Literal::String(_) => ResolvedType::String,
-            Literal::Integer(_) => ResolvedType::Int,
-            Literal::Float(_) => ResolvedType::Float,
-            Literal::Bool(_) => ResolvedType::Bool,
+    fn is_assignable(&self, ty: &BuiltinType) -> bool {
+        match ty {
+            BuiltinType::String => false,
+            BuiltinType::Never => false,
+            BuiltinType::Unit => false,
+            BuiltinType::Function { params: _, return_ty } => self.is_assignable(return_ty),
+            _ => true,
         }
     }
 
-    fn resolve_type_expr(&self, expr: &Expression) -> Result<ResolvedType, SemaError> {
+    fn supports_arithmetic(&self, ty: &BuiltinType) -> bool {
+        matches!(
+            ty,
+            BuiltinType::I8
+                | BuiltinType::U8
+                | BuiltinType::I16
+                | BuiltinType::U16
+                | BuiltinType::I32
+                | BuiltinType::U32
+                | BuiltinType::I64
+                | BuiltinType::U64
+                | BuiltinType::F32
+                | BuiltinType::F64
+        )
+    }
+
+    fn literal_type(&self, lit: &Literal) -> BuiltinType {
+        match lit {
+            Literal::String(_) => BuiltinType::String,
+            Literal::Integer(_) => BuiltinType::I32,
+            Literal::Float(_) => BuiltinType::F32,
+            Literal::Bool(_) => BuiltinType::Bool,
+        }
+    }
+
+    fn resolve_type_expr(&self, expr: &Expression) -> Result<BuiltinType, SemaError> {
         match expr {
             Expression::Identifier(ident) => match ident.0.as_str() {
-                "i32" => Ok(ResolvedType::Int),
-                "f32" => Ok(ResolvedType::Float),
-                "bool" => Ok(ResolvedType::Bool),
-                "str" => Ok(ResolvedType::String),
-                "void" => Ok(ResolvedType::Void),
-                _ => Err(SemaError::undefined_type(ident)),
+                "i8" => Ok(BuiltinType::I8),
+                "u8" => Ok(BuiltinType::U8),
+                "i16" => Ok(BuiltinType::I16),
+                "u16" => Ok(BuiltinType::U16),
+                "i32" => Ok(BuiltinType::I32),
+                "u32" => Ok(BuiltinType::U32),
+                "f32" => Ok(BuiltinType::F32),
+                "f64" => Ok(BuiltinType::F64),
+                "bool" => Ok(BuiltinType::Bool),
+                "str" => Ok(BuiltinType::String),
+                _ => {
+                    let (symbol_kind, ty) = self.symbols.lookup(ident).ok_or(SemaError::undefined_type(ident))?;
+                    match symbol_kind {
+                        SymbolKind::Aliasing => Ok(ty.clone()),
+                        _ => Err(SemaError::undefined_type(ident)),
+                    }
+                },
             },
             _ => Err(SemaError::type_mismatch("a type", "an expression")),
         }
     }
 
-    fn binary_result_type(&self, op: &BinaryOp, operand_ty: &ResolvedType) -> ResolvedType {
-        match op {
-            BinaryOp::CompEq
-            | BinaryOp::CompNotEq
-            | BinaryOp::CompGreater
-            | BinaryOp::CompLess
-            | BinaryOp::CompGreaterEq
-            | BinaryOp::CompLessEq
-            | BinaryOp::CompAnd
-            | BinaryOp::CompOr => ResolvedType::Bool,
-            _ => operand_ty.clone(),
+    fn check_lvalue(&self, expr: &Expression) -> Result<(), SemaError> {
+        match expr {
+            Expression::Identifier(_) => Ok(()),
+            Expression::Literal(_) => Err(SemaError::cannot_assign("a literal")),
+            Expression::Assign { .. } => panic!(), // What?
+            Expression::Binary { .. } => Err(SemaError::cannot_assign("a binary op")),
+            Expression::CallFunction { .. } => Err(SemaError::cannot_assign("a function call")),
         }
     }
 
-    fn check_expression(&mut self, expr: &Expression) -> Result<ResolvedType, SemaError> {
+    fn check_expression(&mut self, expr: &Expression) -> Result<(SymbolKind, BuiltinType), SemaError> {
         match expr {
-            Expression::Literal(lit) => Ok(self.literal_type(lit)),
+            Expression::Literal(lit) => Ok((SymbolKind::Literal, self.literal_type(lit))),
 
             Expression::Identifier(ident) => {
-                let symbol = self.symbols.lookup(ident).ok_or(SemaError::undefined_var(ident))?;
-                Ok(symbol.ty.clone())
+                let (symbol_kind, ty) = self.symbols.lookup(ident).ok_or(SemaError::undefined_var(ident))?;
+                if !matches!(symbol_kind, SymbolKind::Variable { .. } | SymbolKind::Function { .. }) {
+                    return Err(SemaError::undefined_var(ident));
+                }
+
+                Ok((symbol_kind.clone(), ty.clone()))
             },
 
             Expression::Binary { op, lhs_expr, rhs_expr } => {
-                let lhs_ty = self.check_expression(lhs_expr)?;
-                let rhs_ty = self.check_expression(rhs_expr)?;
+                let (lhs_symbol, lhs_ty) = self.check_expression(lhs_expr)?;
+                let (_, rhs_ty) = self.check_expression(rhs_expr)?;
 
                 if lhs_ty != rhs_ty {
                     return Err(SemaError::type_mismatch(lhs_ty, rhs_ty));
                 }
 
-                Ok(self.binary_result_type(op, &lhs_ty))
+                let resolved_ty = match op {
+                    BinaryOp::CompEq
+                    | BinaryOp::CompNotEq
+                    | BinaryOp::CompGreater
+                    | BinaryOp::CompLess
+                    | BinaryOp::CompGreaterEq
+                    | BinaryOp::CompLessEq
+                    | BinaryOp::CompAnd
+                    | BinaryOp::CompOr => BuiltinType::Bool,
+                    _ => lhs_ty,
+                };
+
+                Ok((lhs_symbol, resolved_ty))
             },
 
             Expression::Assign {
@@ -117,33 +137,57 @@ impl SemanticAnalyzer {
                 lhs_expr,
                 rhs_expr,
             } => {
-                let lhs_ty = self.check_expression(lhs_expr)?;
-                let rhs_ty = self.check_expression(rhs_expr)?;
+                self.check_lvalue(lhs_expr)?;
+
+                let (lhs_symbol, lhs_ty) = self.check_expression(lhs_expr)?;
+                let (_, rhs_ty) = self.check_expression(rhs_expr)?;
+
+                if let SymbolKind::Variable { identifier, is_mutable } = &lhs_symbol {
+                    if !is_mutable {
+                        return Err(SemaError::cannot_assign_to_immutable(identifier));
+                    }
+                };
 
                 if lhs_ty != rhs_ty {
                     return Err(SemaError::type_mismatch(lhs_ty, rhs_ty));
                 }
 
-                Ok(lhs_ty)
+                if !self.is_assignable(&lhs_ty) {
+                    return Err(SemaError::cannot_assign_to(rhs_ty, lhs_ty));
+                }
+
+                match kind {
+                    AssignmentKind::Assign => {},
+                    AssignmentKind::CompoundAdd
+                    | AssignmentKind::CompoundSub
+                    | AssignmentKind::CompoundMul
+                    | AssignmentKind::CompoundDiv => {
+                        if !self.supports_arithmetic(&lhs_ty) {
+                            return Err(SemaError::cannot_assign_to(rhs_ty, lhs_ty));
+                        }
+                    },
+                };
+
+                Ok((lhs_symbol, lhs_ty))
             },
 
             Expression::CallFunction { callee, parameters } => {
-                let callee_ty = self.check_expression(callee)?;
+                let (callee_symbol, callee_ty) = self.check_expression(callee)?;
 
                 match callee_ty {
-                    ResolvedType::Function { params, return_type } => {
+                    BuiltinType::Function { params, return_ty } => {
                         if params.len() != parameters.len() {
                             return Err(SemaError::wrong_arg_count(params.len(), parameters.len()));
                         }
 
                         for (param_ty, arg_expr) in params.iter().zip(parameters) {
-                            let arg_ty = self.check_expression(arg_expr)?;
+                            let (_, arg_ty) = self.check_expression(arg_expr)?;
                             if param_ty != &arg_ty {
                                 return Err(SemaError::type_mismatch(param_ty, arg_ty));
                             }
                         }
 
-                        Ok(*return_type)
+                        Ok((callee_symbol, *return_ty))
                     },
                     _ => Err(SemaError::not_callable()),
                 }
@@ -163,10 +207,12 @@ impl SemanticAnalyzer {
                 self.symbols.pop_scope();
                 Ok(())
             },
+
             Statement::DeclFunction {
                 identifier,
                 params,
                 body,
+                return_expr,
             } => {
                 if self.symbols.lookup(&identifier).is_some() {
                     return Err(SemaError::redefinition(identifier));
@@ -178,26 +224,25 @@ impl SemanticAnalyzer {
                     .collect();
                 let param_types = param_types?;
 
-                self.symbols.define(
-                    identifier.clone(),
-                    SymbolInfo {
-                        ty: ResolvedType::Function {
-                            params: param_types.clone(),
-                            return_type: Box::new(ResolvedType::Void), // TODO: return types
-                        },
-                        kind: SymbolKind::Function,
-                    },
-                );
+                let return_ty = if let Some(return_expr) = return_expr {
+                    Box::new(self.resolve_type_expr(&return_expr)?)
+                } else {
+                    Box::new(BuiltinType::Never)
+                };
+
+                let ty = BuiltinType::Function {
+                    params: param_types.clone(),
+                    return_ty,
+                };
+                self.symbols
+                    .define(identifier.clone(), (SymbolKind::Function(identifier), ty));
 
                 self.symbols.push_scope();
 
                 for (FunctionParam(param_name, _), param_ty) in params.iter().zip(param_types.iter()) {
                     self.symbols.define(
                         param_name.clone(),
-                        SymbolInfo {
-                            ty: param_ty.clone(),
-                            kind: SymbolKind::Parameter,
-                        },
+                        (SymbolKind::Parameter(param_name.clone()), param_ty.clone()),
                     );
                 }
 
@@ -207,6 +252,7 @@ impl SemanticAnalyzer {
 
                 Ok(())
             },
+
             Statement::DeclVar {
                 identifier,
                 type_expr,
@@ -222,13 +268,14 @@ impl SemanticAnalyzer {
                     None
                 };
 
-                let inferred_type = if let Some(initial_expr) = initial_expr {
-                    Some(self.check_expression(&initial_expr)?)
+                let (_, inferred_ty) = if let Some(initial_expr) = initial_expr {
+                    let (symbol, ty) = self.check_expression(&initial_expr)?;
+                    (Some(symbol), Some(ty))
                 } else {
-                    None
+                    (None, None)
                 };
 
-                let ty = match (explicit_ty, inferred_type) {
+                let resolved_ty = match (explicit_ty, inferred_ty) {
                     (Some(explicit), Some(inferred)) => {
                         if explicit != inferred {
                             return Err(SemaError::type_mismatch(explicit, inferred));
@@ -242,16 +289,24 @@ impl SemanticAnalyzer {
                     },
                 };
 
+                if !self.is_assignable(&resolved_ty) {
+                    return Err(SemaError::cannot_assign_to(resolved_ty, "to a variable"));
+                }
+
                 self.symbols.define(
                     identifier.clone(),
-                    SymbolInfo {
-                        ty,
-                        kind: SymbolKind::Variable { is_mutable: true },
-                    },
+                    (
+                        SymbolKind::Variable {
+                            identifier,
+                            is_mutable: true,
+                        },
+                        resolved_ty,
+                    ),
                 );
 
                 Ok(())
             },
+
             Statement::Expression(expression) => {
                 self.check_expression(&expression)?;
                 Ok(())

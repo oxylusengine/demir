@@ -1,3 +1,7 @@
+pub mod types;
+
+use crate::types::BuiltinType;
+
 #[derive(Debug, Clone)]
 pub enum IrNode {
     // Root module
@@ -10,7 +14,7 @@ pub enum IrNode {
     Constant(IrConstant),
 
     // Type annotations
-    Type(IrType),
+    Type(BuiltinType),
 
     // Variables
     Variable {
@@ -91,18 +95,4 @@ pub enum IrConstant {
 
 impl IrConstant {
     pub fn from_bool(b: bool) -> Self { if b { IrConstant::True } else { IrConstant::False } }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum IrType {
-    Void,
-    Int,
-    UInt,
-    Float,
-    Bool,
-    String,
-    Function {
-        params: Vec<IrType>,
-        return_type: Box<IrType>,
-    },
 }

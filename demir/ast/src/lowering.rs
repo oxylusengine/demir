@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ir::{IrConstant, IrNode, IrNodeId, IrType};
+use ir::{IrConstant, IrNode, IrNodeId, types::BuiltinType};
 
 use crate::{Expression, Identifier, Literal, Statement};
 
@@ -8,7 +8,7 @@ use crate::{Expression, Identifier, Literal, Statement};
 struct IrModuleBuilder {
     nodes: Vec<IrNode>,
     globals: Vec<IrNodeId>,
-    types: HashMap<IrType, IrNodeId>,
+    types: HashMap<BuiltinType, IrNodeId>,
     // symbols: SymbolMap<Identifier, IrNodeId, IrNodeId>,
     current_block: Option<IrNodeId>,
     current_function: Option<IrNodeId>,
@@ -54,7 +54,7 @@ impl IrModuleBuilder {
         None
     }
 
-    fn lower_type(&mut self, ty: IrType) -> IrNodeId {
+    fn lower_type(&mut self, ty: BuiltinType) -> IrNodeId {
         if let Some(&id) = self.types.get(&ty) {
             return id;
         }
@@ -76,6 +76,7 @@ impl IrModuleBuilder {
                 identifier,
                 params,
                 body,
+                return_expr,
             } => todo!(),
             Statement::DeclVar {
                 identifier,

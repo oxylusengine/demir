@@ -8,6 +8,7 @@ pub enum Statement {
         identifier: Identifier,
         params: Vec<FunctionParam>,
         body: Box<Statement>,
+        return_expr: Option<Expression>,
     },
 
     DeclVar {

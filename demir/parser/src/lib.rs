@@ -124,7 +124,7 @@ impl<'a> Parser<'a> {
         self.expect_next(Token::ParenLeft)?;
 
         let mut params = Vec::new();
-        let mut first_param = false;
+        let mut first_param = true;
         while !self.peek_is(Token::Eof) {
             if self.peek_is(Token::ParenRight) {
                 break;
@@ -144,7 +144,13 @@ impl<'a> Parser<'a> {
 
         self.expect_next(Token::ParenRight)?;
 
-        // TODO: Return type
+        let return_expr = if self.peek_is(Token::Arrow) {
+            self.advance()?;
+
+            Some(self.parse_expr(Precedence::default())?)
+        } else {
+            None
+        };
 
         let body = self.parse_stmt()?;
 
@@ -152,6 +158,7 @@ impl<'a> Parser<'a> {
             identifier,
             params,
             body: Box::new(body),
+            return_expr,
         })
     }
 

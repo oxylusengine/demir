@@ -7,6 +7,9 @@ pub enum SemaErrorKind {
     NotCallable,
     Redefinition(String),
     CannotInferType(String),
+    CannotAssign(String),
+    CannotAssignTo { src: String, dst: String },
+    AssignToImmutableVar(String),
 }
 
 impl std::fmt::Display for SemaErrorKind {
@@ -23,6 +26,9 @@ impl std::fmt::Display for SemaErrorKind {
             SemaErrorKind::NotCallable => write!(f, "not callable"),
             SemaErrorKind::Redefinition(s) => write!(f, "redefinition of {s}"),
             SemaErrorKind::CannotInferType(s) => write!(f, "cannot infer type of {s}"),
+            SemaErrorKind::CannotAssign(s) => write!(f, "cannot assign to {s}"),
+            SemaErrorKind::CannotAssignTo { src, dst } => write!(f, "cannot assign {src} to {dst}"),
+            SemaErrorKind::AssignToImmutableVar(s) => write!(f, "cannot assign to immutable variable {s}"),
         }
     }
 }
@@ -75,6 +81,27 @@ impl SemaError {
     pub fn cannot_infer(ty: impl std::fmt::Display) -> Self {
         Self {
             kind: SemaErrorKind::CannotInferType(ty.to_string()),
+        }
+    }
+
+    pub fn cannot_assign(ty: impl std::fmt::Display) -> Self {
+        Self {
+            kind: SemaErrorKind::CannotAssign(ty.to_string()),
+        }
+    }
+
+    pub fn cannot_assign_to(src: impl std::fmt::Display, dst: impl std::fmt::Display) -> Self {
+        Self {
+            kind: SemaErrorKind::CannotAssignTo {
+                src: src.to_string(),
+                dst: dst.to_string(),
+            },
+        }
+    }
+
+    pub fn cannot_assign_to_immutable(dst: impl std::fmt::Display) -> Self {
+        Self {
+            kind: SemaErrorKind::AssignToImmutableVar(dst.to_string()),
         }
     }
 }

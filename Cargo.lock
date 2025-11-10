@@ -42,4 +42,5 @@ name = "sema"
 version = "1.0.0"
 dependencies = [
  "ast",
+ "ir",
 ]
