@@ -89,10 +89,10 @@ impl IrModuleBuilder {
         }
     }
 
-    fn lower_expr(&mut self, expr: Expression) -> IrNodeId {
+    fn lower_expr(&mut self, expr_id: ExpressionId) -> IrNodeId {
         match expr {
             Expression::Literal(literal) => self.lower_literal(literal),
-            Expression::Identifier(identifier) => *self.lookup_identifier(&identifier).unwrap(),
+            Expression::Identifier(identifier) => self.lower_identifier(identifier),
             Expression::Assign {
                 kind,
                 lhs_expr,
@@ -112,6 +112,12 @@ impl IrModuleBuilder {
         };
 
         self.make_node(IrNode::Constant(constant))
+    }
+
+    fn lower_identifier(&mut self, identifier: Identifier) -> IrNodeId {
+        let node_id = *self.lookup_identifier(&identifier).unwrap();
+
+        todo!()
     }
 }
 

@@ -1,4 +1,24 @@
-pub mod lowering;
+// pub mod lowering;
+
+use core::types::BuiltinType;
+
+pub struct AST {
+    pub root: Statement,
+    pub expressions: Vec<Expression>,
+    pub expression_types: Vec<BuiltinType>,
+}
+
+impl AST {
+    pub fn new(root: Statement, expressions: Vec<Expression>) -> Self {
+        Self {
+            root,
+            expressions,
+            expression_types: Vec::new(),
+        }
+    }
+
+    pub fn get_expr(&self, expr_id: ExpressionId) -> Option<&Expression> { self.expressions.get(expr_id) }
+}
 
 #[derive(Debug, Clone)]
 pub enum Statement {
@@ -8,16 +28,16 @@ pub enum Statement {
         identifier: Identifier,
         params: Vec<FunctionParam>,
         body: Box<Statement>,
-        return_expr: Option<Expression>,
+        return_expr: Option<ExpressionId>,
     },
 
     DeclVar {
         identifier: Identifier,
-        type_expr: Option<Expression>,
-        initial_expr: Option<Expression>,
+        type_expr: Option<ExpressionId>,
+        initial_expr: Option<ExpressionId>,
     },
 
-    Expression(Expression),
+    Expression(ExpressionId),
 }
 
 #[derive(Debug, Clone)]
@@ -26,19 +46,21 @@ pub enum Expression {
     Identifier(Identifier),
     Assign {
         kind: AssignmentKind,
-        lhs_expr: Box<Expression>,
-        rhs_expr: Box<Expression>,
+        lhs_expr: ExpressionId,
+        rhs_expr: ExpressionId,
     },
     Binary {
         op: BinaryOp,
-        lhs_expr: Box<Expression>,
-        rhs_expr: Box<Expression>,
+        lhs_expr: ExpressionId,
+        rhs_expr: ExpressionId,
     },
     CallFunction {
-        callee: Box<Expression>,
-        parameters: Vec<Expression>,
+        callee: ExpressionId,
+        parameters: Vec<ExpressionId>,
     },
 }
+
+pub type ExpressionId = usize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Identifier(pub String); // TODO: Maybe have an inner string table in the future
@@ -98,4 +120,4 @@ pub enum BinaryOp {
 }
 
 #[derive(Debug, Clone)]
-pub struct FunctionParam(pub Identifier, pub Expression);
+pub struct FunctionParam(pub Identifier, pub ExpressionId);

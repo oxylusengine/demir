@@ -2,9 +2,11 @@ mod error;
 
 use core::{symbol_table::SymbolTable, types::BuiltinType};
 
-use ast::{AssignmentKind, BinaryOp, Expression, FunctionParam, Identifier, Literal, Statement};
+use ast::{AST, AssignmentKind, BinaryOp, Expression, ExpressionId, FunctionParam, Identifier, Literal, Statement};
 
 use crate::error::SemaError;
+
+type Symbols = SymbolTable<Identifier, (SymbolKind, BuiltinType)>;
 
 #[derive(Debug, Clone)]
 enum SymbolKind {
@@ -15,54 +17,72 @@ enum SymbolKind {
     Aliasing,
 }
 
-struct SemanticAnalyzer {
-    symbols: SymbolTable<Identifier, (SymbolKind, BuiltinType)>,
+fn is_assignable(ty: &BuiltinType) -> bool {
+    match ty {
+        BuiltinType::String => false,
+        BuiltinType::Never => false,
+        BuiltinType::Unit => false,
+        BuiltinType::Function { params: _, return_ty } => is_assignable(return_ty),
+        _ => true,
+    }
 }
 
-impl SemanticAnalyzer {
-    fn new() -> Self {
+fn supports_arithmetic(ty: &BuiltinType) -> bool {
+    matches!(
+        ty,
+        BuiltinType::I8
+            | BuiltinType::U8
+            | BuiltinType::I16
+            | BuiltinType::U16
+            | BuiltinType::I32
+            | BuiltinType::U32
+            | BuiltinType::I64
+            | BuiltinType::U64
+            | BuiltinType::F32
+            | BuiltinType::F64
+    )
+}
+
+fn literal_type(lit: &Literal) -> BuiltinType {
+    match lit {
+        Literal::String(_) => BuiltinType::String,
+        Literal::Integer(_) => BuiltinType::I32,
+        Literal::Float(_) => BuiltinType::F32,
+        Literal::Bool(_) => BuiltinType::Bool,
+    }
+}
+
+pub struct SemanticAnalyzer<'a> {
+    ast: &'a AST,
+    symbols: Symbols,
+    expr_types: Vec<BuiltinType>,
+}
+
+impl<'a> SemanticAnalyzer<'a> {
+    pub fn new(ast: &'a AST) -> Self {
         Self {
-            symbols: SymbolTable::new(),
+            ast,
+            symbols: Symbols::new(),
+            expr_types: Vec::new(),
         }
     }
 
-    fn is_assignable(&self, ty: &BuiltinType) -> bool {
-        match ty {
-            BuiltinType::String => false,
-            BuiltinType::Never => false,
-            BuiltinType::Unit => false,
-            BuiltinType::Function { params: _, return_ty } => self.is_assignable(return_ty),
-            _ => true,
+    pub fn run_analysis(&mut self) -> Result<(), SemaError> {
+        let root_stmt = self.ast.root.clone();
+        self.check_stmt(&root_stmt)
+    }
+
+    fn annotate_ty(&mut self, expr_id: &ExpressionId, ty: BuiltinType) {
+        if self.expr_types.len() <= *expr_id {
+            self.expr_types.resize(*expr_id + 1, BuiltinType::Never);
         }
+
+        self.expr_types[*expr_id] = ty;
     }
 
-    fn supports_arithmetic(&self, ty: &BuiltinType) -> bool {
-        matches!(
-            ty,
-            BuiltinType::I8
-                | BuiltinType::U8
-                | BuiltinType::I16
-                | BuiltinType::U16
-                | BuiltinType::I32
-                | BuiltinType::U32
-                | BuiltinType::I64
-                | BuiltinType::U64
-                | BuiltinType::F32
-                | BuiltinType::F64
-        )
-    }
-
-    fn literal_type(&self, lit: &Literal) -> BuiltinType {
-        match lit {
-            Literal::String(_) => BuiltinType::String,
-            Literal::Integer(_) => BuiltinType::I32,
-            Literal::Float(_) => BuiltinType::F32,
-            Literal::Bool(_) => BuiltinType::Bool,
-        }
-    }
-
-    fn resolve_type_expr(&self, expr: &Expression) -> Result<BuiltinType, SemaError> {
-        match expr {
+    fn resolve_type_expr(&mut self, expr_id: &ExpressionId) -> Result<BuiltinType, SemaError> {
+        let expr = self.ast.get_expr(*expr_id).ok_or(SemaError::unknown())?;
+        let ty = match expr {
             Expression::Identifier(ident) => match ident.0.as_str() {
                 "i8" => Ok(BuiltinType::I8),
                 "u8" => Ok(BuiltinType::U8),
@@ -83,10 +103,15 @@ impl SemanticAnalyzer {
                 },
             },
             _ => Err(SemaError::type_mismatch("a type", "an expression")),
-        }
+        }?;
+
+        self.annotate_ty(expr_id, ty.clone());
+
+        Ok(ty)
     }
 
-    fn check_lvalue(&self, expr: &Expression) -> Result<(), SemaError> {
+    fn check_lvalue(&self, expr_id: &ExpressionId) -> Result<(), SemaError> {
+        let expr = self.ast.get_expr(*expr_id).ok_or(SemaError::unknown())?;
         match expr {
             Expression::Identifier(_) => Ok(()),
             Expression::Literal(_) => Err(SemaError::cannot_assign("a literal")),
@@ -96,9 +121,10 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn check_expression(&mut self, expr: &Expression) -> Result<(SymbolKind, BuiltinType), SemaError> {
-        match expr {
-            Expression::Literal(lit) => Ok((SymbolKind::Literal, self.literal_type(lit))),
+    fn check_expr(&mut self, expr_id: &ExpressionId) -> Result<(SymbolKind, BuiltinType), SemaError> {
+        let expr = self.ast.get_expr(*expr_id).ok_or(SemaError::unknown())?;
+        let (symbol, ty) = match expr {
+            Expression::Literal(lit) => Ok((SymbolKind::Literal, literal_type(lit))),
 
             Expression::Identifier(ident) => {
                 let (symbol_kind, ty) = self.symbols.lookup(ident).ok_or(SemaError::undefined_var(ident))?;
@@ -113,8 +139,8 @@ impl SemanticAnalyzer {
             },
 
             Expression::Binary { op, lhs_expr, rhs_expr } => {
-                let (lhs_symbol, lhs_ty) = self.check_expression(lhs_expr)?;
-                let (_, rhs_ty) = self.check_expression(rhs_expr)?;
+                let (lhs_symbol, lhs_ty) = self.check_expr(lhs_expr)?;
+                let (_, rhs_ty) = self.check_expr(rhs_expr)?;
 
                 if lhs_ty != rhs_ty {
                     return Err(SemaError::type_mismatch(lhs_ty, rhs_ty));
@@ -142,8 +168,8 @@ impl SemanticAnalyzer {
             } => {
                 self.check_lvalue(lhs_expr)?;
 
-                let (lhs_symbol, lhs_ty) = self.check_expression(lhs_expr)?;
-                let (_, rhs_ty) = self.check_expression(rhs_expr)?;
+                let (lhs_symbol, lhs_ty) = self.check_expr(lhs_expr)?;
+                let (_, rhs_ty) = self.check_expr(rhs_expr)?;
 
                 #[allow(clippy::collapsible_if)]
                 if let SymbolKind::Variable { identifier, is_mutable } = &lhs_symbol {
@@ -156,7 +182,7 @@ impl SemanticAnalyzer {
                     return Err(SemaError::type_mismatch(lhs_ty, rhs_ty));
                 }
 
-                if !self.is_assignable(&lhs_ty) {
+                if !is_assignable(&lhs_ty) {
                     return Err(SemaError::cannot_assign_to(rhs_ty, lhs_ty));
                 }
 
@@ -166,7 +192,7 @@ impl SemanticAnalyzer {
                     | AssignmentKind::CompoundSub
                     | AssignmentKind::CompoundMul
                     | AssignmentKind::CompoundDiv => {
-                        if !self.supports_arithmetic(&lhs_ty) {
+                        if !supports_arithmetic(&lhs_ty) {
                             return Err(SemaError::cannot_assign_to(rhs_ty, lhs_ty));
                         }
                     },
@@ -176,7 +202,7 @@ impl SemanticAnalyzer {
             },
 
             Expression::CallFunction { callee, parameters } => {
-                let (callee_symbol, callee_ty) = self.check_expression(callee)?;
+                let (callee_symbol, callee_ty) = self.check_expr(callee)?;
 
                 match callee_ty {
                     BuiltinType::Function { params, return_ty } => {
@@ -185,7 +211,7 @@ impl SemanticAnalyzer {
                         }
 
                         for (param_ty, arg_expr) in params.iter().zip(parameters) {
-                            let (_, arg_ty) = self.check_expression(arg_expr)?;
+                            let (_, arg_ty) = self.check_expr(arg_expr)?;
                             if param_ty != &arg_ty {
                                 return Err(SemaError::type_mismatch(param_ty, arg_ty));
                             }
@@ -196,16 +222,20 @@ impl SemanticAnalyzer {
                     _ => Err(SemaError::not_callable()),
                 }
             },
-        }
+        }?;
+
+        self.annotate_ty(expr_id, ty.clone());
+
+        Ok((symbol, ty))
     }
 
-    fn analyze_statement(&mut self, stmt: Statement) -> Result<(), SemaError> {
+    fn check_stmt(&mut self, stmt: &Statement) -> Result<(), SemaError> {
         match stmt {
             Statement::Multi(stmts) => {
                 self.symbols.push_scope();
 
                 for stmt in stmts {
-                    self.analyze_statement(stmt)?;
+                    self.check_stmt(stmt)?;
                 }
 
                 self.symbols.pop_scope();
@@ -218,7 +248,7 @@ impl SemanticAnalyzer {
                 body,
                 return_expr,
             } => {
-                if self.symbols.lookup(&identifier).is_some() {
+                if self.symbols.lookup(identifier).is_some() {
                     return Err(SemaError::redefinition(identifier));
                 }
 
@@ -229,7 +259,7 @@ impl SemanticAnalyzer {
                 let param_types = param_types?;
 
                 let return_ty = if let Some(return_expr) = return_expr {
-                    Box::new(self.resolve_type_expr(&return_expr)?)
+                    Box::new(self.resolve_type_expr(return_expr)?)
                 } else {
                     Box::new(BuiltinType::Never)
                 };
@@ -239,7 +269,7 @@ impl SemanticAnalyzer {
                     return_ty,
                 };
                 self.symbols
-                    .define(identifier.clone(), (SymbolKind::Function(identifier), ty));
+                    .define(identifier.clone(), (SymbolKind::Function(identifier.clone()), ty));
 
                 self.symbols.push_scope();
 
@@ -250,7 +280,7 @@ impl SemanticAnalyzer {
                     );
                 }
 
-                self.analyze_statement(*body)?;
+                self.check_stmt(body)?;
 
                 self.symbols.pop_scope();
 
@@ -262,18 +292,18 @@ impl SemanticAnalyzer {
                 type_expr,
                 initial_expr,
             } => {
-                if self.symbols.lookup(&identifier).is_some() {
+                if self.symbols.lookup(identifier).is_some() {
                     return Err(SemaError::redefinition(identifier));
                 }
 
                 let explicit_ty = if let Some(type_expr) = type_expr {
-                    Some(self.resolve_type_expr(&type_expr)?)
+                    Some(self.resolve_type_expr(type_expr)?)
                 } else {
                     None
                 };
 
                 let (_, inferred_ty) = if let Some(initial_expr) = initial_expr {
-                    let (symbol, ty) = self.check_expression(&initial_expr)?;
+                    let (symbol, ty) = self.check_expr(initial_expr)?;
                     (Some(symbol), Some(ty))
                 } else {
                     (None, None)
@@ -293,7 +323,7 @@ impl SemanticAnalyzer {
                     },
                 };
 
-                if !self.is_assignable(&resolved_ty) {
+                if !is_assignable(&resolved_ty) {
                     return Err(SemaError::cannot_assign_to(resolved_ty, "to a variable"));
                 }
 
@@ -301,7 +331,7 @@ impl SemanticAnalyzer {
                     identifier.clone(),
                     (
                         SymbolKind::Variable {
-                            identifier,
+                            identifier: identifier.clone(),
                             is_mutable: true,
                         },
                         resolved_ty,
@@ -312,16 +342,18 @@ impl SemanticAnalyzer {
             },
 
             Statement::Expression(expression) => {
-                self.check_expression(&expression)?;
+                self.check_expr(expression)?;
                 Ok(())
             },
         }
     }
 }
 
-pub fn analyze(stmt: Statement) -> Result<(), SemaError> {
-    let mut anaylzer = SemanticAnalyzer::new();
-    anaylzer.analyze_statement(stmt)?;
+pub fn analyze(mut ast: AST) -> Result<AST, SemaError> {
+    let mut analyzer = SemanticAnalyzer::new(&ast);
+    analyzer.run_analysis()?;
 
-    Ok(())
+    ast.expression_types = analyzer.expr_types;
+
+    Ok(ast)
 }

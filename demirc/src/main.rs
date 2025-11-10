@@ -1,23 +1,17 @@
-use parser::Parser;
+use parser::{self};
 use sema::{self};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input = r#"
-fn func(param1: i32) -> i32 {
-    var bar = param1;
-}
-
+fn func() -> i32 {}
 fn main() {
-    var foo = 2;
-    foo = func(foo);
+    var foo = func();
 }
 
 "#;
 
-    let mut parser = Parser::new(input);
-    let root_statement = parser.parse()?;
-
-    sema::analyze(root_statement)?;
+    let mut ast = parser::parse(input)?;
+    ast = sema::analyze(ast)?;
 
     Ok(())
 }

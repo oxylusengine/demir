@@ -1,4 +1,4 @@
-use ast::{Expression, FunctionParam, Identifier, Literal, Statement};
+use ast::{AST, Expression, ExpressionId, FunctionParam, Identifier, Literal, Statement};
 use lexer::{
     lexer::Lexer,
     token::{Location, Token},
@@ -14,26 +14,38 @@ mod precedence;
 
 type ParseResult<T> = Result<T, ParseError>;
 
-pub struct Parser<'a> {
+struct Parser<'a> {
     lexer: Lexer<'a>,
     peeked_token: Option<(Token<'a>, Location)>,
+    expressions: Vec<Expression>,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(buffer_view: &'a str) -> Self {
+    fn new(buffer_view: &'a str) -> Self {
         Self {
             lexer: Lexer::new(buffer_view),
             peeked_token: None,
+            expressions: Vec::new(),
         }
     }
 
-    pub fn parse(&mut self) -> ParseResult<Statement> {
+    pub fn make_expr(&mut self, expr: Expression) -> ExpressionId {
+        let expr_id = self.expressions.len();
+        self.expressions.push(expr);
+
+        expr_id
+    }
+
+    fn parse(&mut self) -> ParseResult<AST> {
         let mut statements = Vec::new();
         while !self.peek_is(Token::Eof) {
             statements.push(self.parse_single_stmt()?);
         }
 
-        Ok(Statement::Multi(statements))
+        Ok(AST::new(
+            Statement::Multi(statements),
+            std::mem::take(&mut self.expressions),
+        ))
     }
 
     fn parse_identifier(&mut self) -> ParseResult<Identifier> {
@@ -162,14 +174,14 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_expr(&mut self, precedence: Precedence) -> ParseResult<Expression> {
+    fn parse_expr(&mut self, precedence: Precedence) -> ParseResult<ExpressionId> {
         let postfix_expr = self.parse_postfix_expr()?;
         self.parse_expr_with_precedence(precedence, postfix_expr)
     }
 
     fn parse_expr_with_precedence(
-        &mut self, precedence: Precedence, lhs_expression: Expression,
-    ) -> ParseResult<Expression> {
+        &mut self, precedence: Precedence, lhs_expression: ExpressionId,
+    ) -> ParseResult<ExpressionId> {
         let mut expression = lhs_expression;
 
         while !self.peek_is(Token::Eof) {
@@ -209,24 +221,24 @@ impl<'a> Parser<'a> {
             }
 
             expression = if first_precedence == Precedence::Assignment {
-                Expression::Assign {
+                self.make_expr(Expression::Assign {
                     kind: assign_kind?,
-                    lhs_expr: Box::new(expression),
-                    rhs_expr: Box::new(rhs_expression),
-                }
+                    lhs_expr: expression,
+                    rhs_expr: rhs_expression,
+                })
             } else {
-                Expression::Binary {
+                self.make_expr(Expression::Binary {
                     op: binary_op?,
-                    lhs_expr: Box::new(expression),
-                    rhs_expr: Box::new(rhs_expression),
-                }
+                    lhs_expr: expression,
+                    rhs_expr: rhs_expression,
+                })
             };
         }
 
         Ok(expression)
     }
 
-    fn parse_prefix_expr(&mut self) -> ParseResult<Expression> {
+    fn parse_prefix_expr(&mut self) -> ParseResult<ExpressionId> {
         let (token, location) = self.peek().ok_or(ParseError::end_of_file())?;
         match token {
             Token::Identifier(_) => self.parse_identifier_expr(),
@@ -237,7 +249,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_postfix_expr(&mut self) -> ParseResult<Expression> {
+    fn parse_postfix_expr(&mut self) -> ParseResult<ExpressionId> {
         let mut prefix_expr = self.parse_prefix_expr()?;
         loop {
             let (token, _) = self.peek().ok_or(ParseError::end_of_file())?;
@@ -255,7 +267,7 @@ impl<'a> Parser<'a> {
         Ok(prefix_expr)
     }
 
-    fn parse_expr_list(&mut self, terminator: Token) -> ParseResult<Vec<Expression>> {
+    fn parse_expr_list(&mut self, terminator: Token) -> ParseResult<Vec<ExpressionId>> {
         let mut expressions = Vec::new();
 
         let mut is_first = true;
@@ -271,12 +283,12 @@ impl<'a> Parser<'a> {
         Ok(expressions)
     }
 
-    fn parse_identifier_expr(&mut self) -> ParseResult<Expression> {
+    fn parse_identifier_expr(&mut self) -> ParseResult<ExpressionId> {
         let identifier = self.parse_identifier()?;
-        Ok(Expression::Identifier(identifier))
+        Ok(self.make_expr(Expression::Identifier(identifier)))
     }
 
-    fn parse_literal_expr(&mut self) -> ParseResult<Expression> {
+    fn parse_literal_expr(&mut self) -> ParseResult<ExpressionId> {
         let (token, location) = self.advance()?;
 
         let literal = match token {
@@ -286,18 +298,18 @@ impl<'a> Parser<'a> {
             _ => return Err(ParseError::unexpected("a literal", token, location)),
         };
 
-        Ok(Expression::Literal(literal))
+        Ok(self.make_expr(Expression::Literal(literal)))
     }
 
-    fn parse_call_function_expr(&mut self, callee_expr: Expression) -> ParseResult<Expression> {
+    fn parse_call_function_expr(&mut self, callee_expr: ExpressionId) -> ParseResult<ExpressionId> {
         self.expect_next(Token::ParenLeft)?;
         let param_exprs = self.parse_expr_list(Token::ParenRight)?;
         self.expect_next(Token::ParenRight)?;
 
-        Ok(Expression::CallFunction {
-            callee: Box::new(callee_expr),
+        Ok(self.make_expr(Expression::CallFunction {
+            callee: callee_expr,
             parameters: param_exprs,
-        })
+        }))
     }
 
     fn peek(&mut self) -> &Option<(Token<'_>, Location)> {
@@ -336,4 +348,9 @@ impl<'a> Parser<'a> {
             _ => Ok((token, location)),
         }
     }
+}
+
+pub fn parse(buffer_view: &str) -> ParseResult<AST> {
+    let mut parser = Parser::new(buffer_view);
+    parser.parse()
 }

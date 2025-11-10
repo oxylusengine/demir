@@ -1,5 +1,6 @@
 #[derive(Clone, Debug)]
 pub enum SemaErrorKind {
+    Unknown,
     UndefinedVariable(String),
     UndefinedType(String),
     TypeMismatch { expected: String, got: String },
@@ -15,6 +16,7 @@ pub enum SemaErrorKind {
 impl std::fmt::Display for SemaErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            SemaErrorKind::Unknown => write!(f, "internal compiler error"),
             SemaErrorKind::UndefinedVariable(s) => write!(f, "undefined variable {s}"),
             SemaErrorKind::UndefinedType(s) => write!(f, "undefined type {s}"),
             SemaErrorKind::TypeMismatch { expected, got, .. } => {
@@ -39,6 +41,12 @@ pub struct SemaError {
 }
 
 impl SemaError {
+    pub fn unknown() -> Self {
+        Self {
+            kind: SemaErrorKind::Unknown,
+        }
+    }
+
     pub fn undefined_var(var: impl std::fmt::Display) -> Self {
         Self {
             kind: SemaErrorKind::UndefinedVariable(var.to_string()),
