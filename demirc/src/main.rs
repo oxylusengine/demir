@@ -3,13 +3,13 @@ use sema::{self};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input = r#"
-fn func(foo: i32) -> i32 {
+fn func(param1: i32) -> i32 {
+    var bar = param1;
 }
 
 fn main() {
-    var real: f32;
     var foo = 2;
-    foo = func(real);
+    foo = func(foo);
 }
 
 "#;

@@ -102,7 +102,10 @@ impl SemanticAnalyzer {
 
             Expression::Identifier(ident) => {
                 let (symbol_kind, ty) = self.symbols.lookup(ident).ok_or(SemaError::undefined_var(ident))?;
-                if !matches!(symbol_kind, SymbolKind::Variable { .. } | SymbolKind::Function { .. }) {
+                if !matches!(
+                    symbol_kind,
+                    SymbolKind::Variable { .. } | SymbolKind::Function { .. } | SymbolKind::Parameter { .. }
+                ) {
                     return Err(SemaError::undefined_var(ident));
                 }
 
@@ -142,6 +145,7 @@ impl SemanticAnalyzer {
                 let (lhs_symbol, lhs_ty) = self.check_expression(lhs_expr)?;
                 let (_, rhs_ty) = self.check_expression(rhs_expr)?;
 
+                #[allow(clippy::collapsible_if)]
                 if let SymbolKind::Variable { identifier, is_mutable } = &lhs_symbol {
                     if !is_mutable {
                         return Err(SemaError::cannot_assign_to_immutable(identifier));
