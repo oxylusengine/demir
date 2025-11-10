@@ -1,6 +1,4 @@
-pub mod types;
-
-use crate::types::BuiltinType;
+use core::types::BuiltinType;
 
 #[derive(Debug, Clone)]
 pub enum IrNode {

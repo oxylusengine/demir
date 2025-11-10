@@ -1,18 +1,11 @@
 use std::collections::HashMap;
 
-pub struct SymbolTable<K, V> {
-    scopes: Vec<Scope<K, V>>,
-}
-
-impl<K: std::fmt::Debug, V: std::fmt::Debug> std::fmt::Debug for SymbolTable<K, V> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SymbolTable").field("scopes", &self.scopes).finish()
-    }
-}
-
-#[derive(Debug)]
 struct Scope<K, V> {
     symbols: HashMap<K, V>,
+}
+
+pub struct SymbolTable<K, V> {
+    scopes: Vec<Scope<K, V>>,
 }
 
 impl<K, V> SymbolTable<K, V>
@@ -62,4 +55,3 @@ where
 {
     fn default() -> Self { Self::new() }
 }
-

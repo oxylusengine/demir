@@ -1,17 +1,17 @@
+use core::{symbol_table::SymbolTable, types::BuiltinType};
 use std::collections::HashMap;
 
-use ir::{IrConstant, IrNode, IrNodeId, types::BuiltinType};
+use ir::{IrConstant, IrNode, IrNodeId};
 
 use crate::{Expression, Identifier, Literal, Statement};
 
-#[derive(Debug)]
 struct IrModuleBuilder {
     nodes: Vec<IrNode>,
     globals: Vec<IrNodeId>,
     types: HashMap<BuiltinType, IrNodeId>,
-    // symbols: SymbolMap<Identifier, IrNodeId, IrNodeId>,
     current_block: Option<IrNodeId>,
     current_function: Option<IrNodeId>,
+    symbols: SymbolTable<Identifier, IrNodeId>,
 }
 
 impl IrModuleBuilder {

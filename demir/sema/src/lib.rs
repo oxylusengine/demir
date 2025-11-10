@@ -1,10 +1,10 @@
 mod error;
-mod symbol_table;
+
+use core::{symbol_table::SymbolTable, types::BuiltinType};
 
 use ast::{AssignmentKind, BinaryOp, Expression, FunctionParam, Identifier, Literal, Statement};
-use ir::types::BuiltinType;
 
-use crate::{error::SemaError, symbol_table::SymbolTable};
+use crate::error::SemaError;
 
 #[derive(Debug, Clone)]
 enum SymbolKind {

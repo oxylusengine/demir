@@ -6,8 +6,13 @@ version = 4
 name = "ast"
 version = "1.0.0"
 dependencies = [
+ "core",
  "ir",
 ]
+
+[[package]]
+name = "core"
+version = "1.0.0"
 
 [[package]]
 name = "demirc"
@@ -20,6 +25,9 @@ dependencies = [
 [[package]]
 name = "ir"
 version = "1.0.0"
+dependencies = [
+ "core",
+]
 
 [[package]]
 name = "lexer"
@@ -42,5 +50,5 @@ name = "sema"
 version = "1.0.0"
 dependencies = [
  "ast",
- "ir",
+ "core",
 ]
