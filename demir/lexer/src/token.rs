@@ -10,6 +10,7 @@ pub enum Token<'a> {
     Null,
     Var,
     Fn,
+    Return,
 
     /// Punctuators - Single character
     Equal, // =
@@ -72,6 +73,18 @@ pub enum Token<'a> {
     BlockComment(&'a str),
 }
 
+impl<'a> Token<'a> {
+    pub fn from_identifier(ident: &'a str) -> Self {
+        match ident {
+            "null" => Token::Null,
+            "var" => Token::Var,
+            "fn" => Token::Fn,
+            "return" => Token::Return,
+            _ => Token::Identifier(ident),
+        }
+    }
+}
+
 impl std::fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -82,6 +95,7 @@ impl std::fmt::Display for Token<'_> {
             Token::Null => write!(f, "null"),
             Token::Var => write!(f, "var"),
             Token::Fn => write!(f, "fn"),
+            Token::Return => write!(f, "return"),
 
             // Single character punctuators
             Token::Equal => write!(f, "="),

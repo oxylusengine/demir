@@ -1,21 +1,15 @@
 mod error;
 
-use core::{symbol_table::SymbolTable, types::BuiltinType};
+use core::{
+    symbol_table::SymbolTable,
+    types::{BuiltinType, Identifier, SymbolKind},
+};
 
-use ast::{AST, AssignmentKind, BinaryOp, Expression, ExpressionId, FunctionParam, Identifier, Literal, Statement};
+use ast::{AST, AssignmentKind, BinaryOp, Expression, ExpressionId, FunctionParam, Literal, Statement};
 
 use crate::error::SemaError;
 
 type Symbols = SymbolTable<Identifier, (SymbolKind, BuiltinType)>;
-
-#[derive(Debug, Clone)]
-enum SymbolKind {
-    Literal,
-    Variable { identifier: Identifier, is_mutable: bool },
-    Function(Identifier),
-    Parameter(Identifier),
-    Aliasing,
-}
 
 fn is_assignable(ty: &BuiltinType) -> bool {
     match ty {
@@ -81,7 +75,7 @@ impl<'a> SemanticAnalyzer<'a> {
     }
 
     fn resolve_type_expr(&mut self, expr_id: &ExpressionId) -> Result<BuiltinType, SemaError> {
-        let expr = self.ast.get_expr(*expr_id).ok_or(SemaError::unknown())?;
+        let expr = self.ast.get_expr(expr_id).ok_or(SemaError::unknown())?;
         let ty = match expr {
             Expression::Identifier(ident) => match ident.0.as_str() {
                 "i8" => Ok(BuiltinType::I8),
@@ -111,7 +105,7 @@ impl<'a> SemanticAnalyzer<'a> {
     }
 
     fn check_lvalue(&self, expr_id: &ExpressionId) -> Result<(), SemaError> {
-        let expr = self.ast.get_expr(*expr_id).ok_or(SemaError::unknown())?;
+        let expr = self.ast.get_expr(expr_id).ok_or(SemaError::unknown())?;
         match expr {
             Expression::Identifier(_) => Ok(()),
             Expression::Literal(_) => Err(SemaError::cannot_assign("a literal")),
@@ -122,7 +116,7 @@ impl<'a> SemanticAnalyzer<'a> {
     }
 
     fn check_expr(&mut self, expr_id: &ExpressionId) -> Result<(SymbolKind, BuiltinType), SemaError> {
-        let expr = self.ast.get_expr(*expr_id).ok_or(SemaError::unknown())?;
+        let expr = self.ast.get_expr(expr_id).ok_or(SemaError::unknown())?;
         let (symbol, ty) = match expr {
             Expression::Literal(lit) => Ok((SymbolKind::Literal, literal_type(lit))),
 
@@ -252,11 +246,10 @@ impl<'a> SemanticAnalyzer<'a> {
                     return Err(SemaError::redefinition(identifier));
                 }
 
-                let param_types: Result<Vec<_>, _> = params
+                let param_types = params
                     .iter()
                     .map(|FunctionParam(_, type_expr)| self.resolve_type_expr(type_expr))
-                    .collect();
-                let param_types = param_types?;
+                    .collect::<Result<Vec<_>, _>>()?;
 
                 let return_ty = if let Some(return_expr) = return_expr {
                     Box::new(self.resolve_type_expr(return_expr)?)

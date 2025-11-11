@@ -20,6 +20,18 @@ pub enum BuiltinType {
     },
 }
 
+#[derive(Debug, Clone)]
+pub enum SymbolKind {
+    Literal,
+    Variable { identifier: Identifier, is_mutable: bool },
+    Function(Identifier),
+    Parameter(Identifier),
+    Aliasing,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Identifier(pub String); // TODO: Maybe have an inner string table in the future
+
 impl std::fmt::Display for BuiltinType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -40,4 +52,8 @@ impl std::fmt::Display for BuiltinType {
             BuiltinType::Function { .. } => write!(f, "function"),
         }
     }
+}
+
+impl std::fmt::Display for Identifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.0) }
 }

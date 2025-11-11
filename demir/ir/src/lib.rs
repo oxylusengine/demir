@@ -5,6 +5,7 @@ pub enum IrNode {
     // Root module
     Module {
         nodes: Vec<IrNode>,
+        functions: Vec<IrNodeId>,
         globals: Vec<IrNodeId>,
     },
 
@@ -21,6 +22,7 @@ pub enum IrNode {
 
     // Memory operations
     Load {
+        ty: IrNodeId,
         variable: IrNodeId,
     },
     Store {
@@ -29,31 +31,103 @@ pub enum IrNode {
     },
 
     // Binary operations
-    Add(IrNodeId, IrNodeId),
-    Sub(IrNodeId, IrNodeId),
-    Mul(IrNodeId, IrNodeId),
-    Div(IrNodeId, IrNodeId),
-    Mod(IrNodeId, IrNodeId),
+    Add {
+        ty: IrNodeId,
+        lhs: IrNodeId,
+        rhs: IrNodeId,
+    },
+    Sub {
+        ty: IrNodeId,
+        lhs: IrNodeId,
+        rhs: IrNodeId,
+    },
+    Mul {
+        ty: IrNodeId,
+        lhs: IrNodeId,
+        rhs: IrNodeId,
+    },
+    Div {
+        ty: IrNodeId,
+        lhs: IrNodeId,
+        rhs: IrNodeId,
+    },
+    Mod {
+        ty: IrNodeId,
+        lhs: IrNodeId,
+        rhs: IrNodeId,
+    },
 
     // Bitwise operations
-    BitAnd(IrNodeId, IrNodeId),
-    BitOr(IrNodeId, IrNodeId),
-    BitXor(IrNodeId, IrNodeId),
+    BitAnd {
+        ty: IrNodeId,
+        lhs: IrNodeId,
+        rhs: IrNodeId,
+    },
+    BitOr {
+        ty: IrNodeId,
+        lhs: IrNodeId,
+        rhs: IrNodeId,
+    },
+    BitXor {
+        ty: IrNodeId,
+        lhs: IrNodeId,
+        rhs: IrNodeId,
+    },
     BitNot(IrNodeId),
-    ShiftLeft(IrNodeId, IrNodeId),
-    ShiftRight(IrNodeId, IrNodeId),
+    ShiftLeft {
+        ty: IrNodeId,
+        lhs: IrNodeId,
+        rhs: IrNodeId,
+    },
+    ShiftRight {
+        ty: IrNodeId,
+        lhs: IrNodeId,
+        rhs: IrNodeId,
+    },
 
     // Comparison operations
-    Equal(IrNodeId, IrNodeId),
-    NotEqual(IrNodeId, IrNodeId),
-    GreaterThan(IrNodeId, IrNodeId),
-    GreaterThanOrEqual(IrNodeId, IrNodeId),
-    LessThan(IrNodeId, IrNodeId),
-    LessThanOrEqual(IrNodeId, IrNodeId),
+    Equal {
+        ty: IrNodeId,
+        lhs: IrNodeId,
+        rhs: IrNodeId,
+    },
+    NotEqual {
+        ty: IrNodeId,
+        lhs: IrNodeId,
+        rhs: IrNodeId,
+    },
+    GreaterThan {
+        ty: IrNodeId,
+        lhs: IrNodeId,
+        rhs: IrNodeId,
+    },
+    GreaterThanOrEqual {
+        ty: IrNodeId,
+        lhs: IrNodeId,
+        rhs: IrNodeId,
+    },
+    LessThan {
+        ty: IrNodeId,
+        lhs: IrNodeId,
+        rhs: IrNodeId,
+    },
+    LessThanOrEqual {
+        ty: IrNodeId,
+        lhs: IrNodeId,
+        rhs: IrNodeId,
+    },
 
     // Logical operations
-    LogicalAnd(IrNodeId, IrNodeId),
-    LogicalOr(IrNodeId, IrNodeId),
+    LogicalAnd {
+        ty: IrNodeId,
+        lhs: IrNodeId,
+        rhs: IrNodeId,
+    },
+    LogicalOr {
+        ty: IrNodeId,
+        lhs: IrNodeId,
+        rhs: IrNodeId,
+    },
     LogicalNot(IrNodeId),
 
     // Control flow
@@ -70,7 +144,9 @@ pub enum IrNode {
     Function {
         ty: IrNodeId,
         starter_block: IrNodeId,
-        parameters: Vec<IrNodeId>,
+    },
+    FunctionParam {
+        ty: IrNodeId,
     },
     Call {
         callee: IrNodeId,

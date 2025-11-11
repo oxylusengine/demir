@@ -9,15 +9,6 @@ pkgs.mkShell {
     cargo
     rustup
     clang
-
-    xorg.libX11
-    xorg.libXcursor
-    xorg.libXrandr
-    xorg.libXi
-    xorg.libxcb
-    libxkbcommon
-    vulkan-loader
-    wayland
   ];
 
   RUSTC_VERSION = overrides.toolchain.channel;

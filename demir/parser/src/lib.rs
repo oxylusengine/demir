@@ -1,4 +1,6 @@
-use ast::{AST, Expression, ExpressionId, FunctionParam, Identifier, Literal, Statement};
+use core::types::Identifier;
+
+use ast::{AST, Expression, ExpressionId, FunctionParam, Literal, Statement};
 use lexer::{
     lexer::Lexer,
     token::{Location, Token},

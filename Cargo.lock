@@ -18,6 +18,9 @@ version = "1.0.0"
 name = "demirc"
 version = "0.0.0"
 dependencies = [
+ "ast",
+ "core",
+ "ir",
  "parser",
  "sema",
 ]
@@ -38,6 +41,7 @@ name = "parser"
 version = "1.0.0"
 dependencies = [
  "ast",
+ "core",
  "lexer",
 ]
 

@@ -1,6 +1,6 @@
-// pub mod lowering;
+pub mod lowering;
 
-use core::types::BuiltinType;
+use core::types::{BuiltinType, Identifier};
 
 pub struct AST {
     pub root: Statement,
@@ -17,7 +17,18 @@ impl AST {
         }
     }
 
-    pub fn get_expr(&self, expr_id: ExpressionId) -> Option<&Expression> { self.expressions.get(expr_id) }
+    pub fn get_expr(&self, expr_id: &ExpressionId) -> Option<&Expression> { self.expressions.get(*expr_id) }
+
+    pub fn get_expr_with_ty(&self, expr_id: &ExpressionId) -> Option<(&Expression, &BuiltinType)> {
+        if self.expressions.len() < *expr_id || self.expression_types.len() < *expr_id {
+            return None;
+        }
+
+        Some((
+            self.expressions.get(*expr_id).unwrap(),
+            self.expression_types.get(*expr_id).unwrap(),
+        ))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -61,13 +72,6 @@ pub enum Expression {
 }
 
 pub type ExpressionId = usize;
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Identifier(pub String); // TODO: Maybe have an inner string table in the future
-
-impl std::fmt::Display for Identifier {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.0) }
-}
 
 #[derive(Clone, Debug)]
 pub enum Literal {

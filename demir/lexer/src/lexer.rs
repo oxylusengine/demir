@@ -44,12 +44,7 @@ impl<'a> Lexer<'a> {
         }
 
         let identifier_str = &self.buffer_view[start_offset..self.offset];
-        match identifier_str {
-            "null" => Token::Null,
-            "var" => Token::Var,
-            "fn" => Token::Fn,
-            _ => Token::Identifier(identifier_str),
-        }
+        Token::from_identifier(identifier_str)
     }
 
     fn consume_number(&mut self) -> Token<'a> {

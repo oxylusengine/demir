@@ -8,5 +8,8 @@ name = "demirc"
 path = "src/main.rs"
 
 [dependencies]
+core = { path = "../demir/core" }
+ast = { path = "../demir/ast" }
+ir = { path = "../demir/ir" }
 parser = { path = "../demir/parser" }
 sema = { path = "../demir/sema" }
