@@ -32,6 +32,7 @@ dependencies = [
  "ir",
  "parser",
  "sema",
+ "vm",
 ]
 
 [[package]]
@@ -64,4 +65,11 @@ version = "1.0.0"
 dependencies = [
  "ast",
  "core",
+]
+
+[[package]]
+name = "vm"
+version = "1.0.0"
+dependencies = [
+ "codegen",
 ]

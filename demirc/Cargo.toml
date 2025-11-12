@@ -14,3 +14,4 @@ ir = { path = "../demir/ir" }
 parser = { path = "../demir/parser" }
 sema = { path = "../demir/sema" }
 codegen = { path = "../demir/codegen" }
+vm = { path = "../demir/vm" }

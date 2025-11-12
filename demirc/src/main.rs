@@ -5,14 +5,15 @@ use codegen::{CodeGenerator, disasm};
 use ir::{IrConstant, IrNode, IrNodeId};
 use parser::{self};
 use sema::{self};
+use vm::VM;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input = r#"
-@external
-fn println(msg: str);
-
-fn main() {
-    println("hello from VM");
+fn main() -> i32 {
+    var x = 69;
+    var y = 420;
+    x = x * 1000;
+    return x + y;
 }
 "#;
 
@@ -30,10 +31,19 @@ fn main() {
     println!("=== BC ===");
     let mut codegen = CodeGenerator::new();
     let module = codegen.generate(&ir_module);
-    module.functions.iter().for_each(|f| match disasm::print_code(&f.code) {
+    match disasm::print_code(&module.code) {
         Ok(_) => {},
-        Err(_) => panic!(),
-    });
+        Err(e) => panic!("{}", e),
+    }
+
+    println!("=== VM ===");
+    let mut vm = VM::new(module);
+    let value = match vm.execute_function(0) {
+        Ok(value) => value,
+        Err(e) => panic!("{}", e),
+    };
+
+    println!("VM eval: {:?}", value);
 
     Ok(())
 }

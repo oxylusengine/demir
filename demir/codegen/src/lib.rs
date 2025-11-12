@@ -12,15 +12,17 @@ use crate::opcode::Op;
 pub struct Module {
     pub magic: [u8; 4],
     pub version: u16,
+    pub strings: Vec<String>,
     pub functions: Vec<CompiledFunction>,
+    pub code: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
 pub struct CompiledFunction {
     pub id: u16,
+    pub address: u32,
     pub param_count: u8,
     pub local_count: u16,
-    pub code: Vec<u8>,
 }
 
 struct MarkedJump {
@@ -33,9 +35,6 @@ struct FunctionGenerator {
     local_slots: HashMap<IrNodeId, u16>,
     next_local_slot: u16,
     ssa_stack: HashSet<IrNodeId>,
-    label_offsets: HashMap<IrNodeId, u32>,
-    marked_jumps: Vec<MarkedJump>,
-    code: Vec<u8>,
 }
 
 impl FunctionGenerator {
@@ -44,50 +43,15 @@ impl FunctionGenerator {
     fn mark_popped(&mut self, id: &IrNodeId) { self.ssa_stack.remove(id); }
 
     fn is_on_stack(&self, id: &IrNodeId) -> bool { self.ssa_stack.contains(id) }
-
-    fn emit(&mut self, op: Op) { self.code.push(op as u8); }
-
-    fn emit_load_local(&mut self, slot: u16) {
-        self.emit(Op::LoadLocal);
-        self.code.extend(slot.to_le_bytes());
-    }
-
-    fn emit_store_local(&mut self, slot: u16) {
-        self.emit(Op::StoreLocal);
-        self.code.extend(slot.to_le_bytes());
-    }
-
-    fn emit_call(&mut self, func_id: u16, arg_count: u8) {
-        self.emit(Op::Call);
-        self.code.extend(func_id.to_le_bytes());
-        self.code.push(arg_count);
-    }
-
-    fn mark_jump(&mut self, jump_kind: Op, dst_block_id: IrNodeId) {
-        self.emit(jump_kind);
-
-        self.marked_jumps.push(MarkedJump {
-            offset: self.code.len() as u32,
-            dst_block_id,
-        });
-
-        self.code.extend(&[0u8; 4]);
-    }
-
-    fn resolve_jumps(&mut self) {
-        for jump in &self.marked_jumps {
-            let target_offset = *self.label_offsets.get(&jump.dst_block_id).unwrap();
-            let jump_distance = (target_offset as i32 - jump.offset as i32) as u32;
-            let byte_offset = jump.offset as usize;
-            self.code[byte_offset..byte_offset + 4].copy_from_slice(&jump_distance.to_le_bytes());
-        }
-    }
 }
 
 pub struct CodeGenerator {
     functions: Vec<CompiledFunction>,
     func_slots: HashMap<IrNodeId, u16>,
+    marked_jumps: Vec<MarkedJump>,
+    label_offsets: HashMap<IrNodeId, u32>,
     strings: Vec<String>,
+    code: Vec<u8>,
 }
 
 impl CodeGenerator {
@@ -95,7 +59,10 @@ impl CodeGenerator {
         Self {
             functions: Vec::new(),
             func_slots: HashMap::new(),
+            marked_jumps: Vec::new(),
+            label_offsets: HashMap::new(),
             strings: Vec::new(),
+            code: Vec::new(),
         }
     }
 
@@ -110,10 +77,14 @@ impl CodeGenerator {
                     self.generate_function(nodes, func_id);
                 }
 
+                self.resolve_jumps();
+
                 Module {
                     magic: *b"EMIR",
                     version: 1,
+                    strings: self.strings.clone(),
                     functions: self.functions.clone(),
+                    code: self.code.clone(),
                 }
             },
             _ => panic!(),
@@ -121,6 +92,8 @@ impl CodeGenerator {
     }
 
     fn generate_function(&mut self, nodes: &[IrNode], func_id: &IrNodeId) {
+        let address = self.code.len() as u32;
+
         let func_node = &nodes[*func_id];
         match func_node {
             IrNode::Function { starter_block, .. } => {
@@ -129,9 +102,6 @@ impl CodeGenerator {
                     local_slots: HashMap::new(),
                     next_local_slot: 0,
                     ssa_stack: HashSet::new(),
-                    label_offsets: HashMap::new(),
-                    marked_jumps: Vec::new(),
-                    code: Vec::new(),
                 };
 
                 // LOCAL SLOT RESERVATION ORDER:
@@ -144,13 +114,11 @@ impl CodeGenerator {
 
                 self.generate_block(nodes, starter_block, &mut func_generator);
 
-                func_generator.resolve_jumps();
-
                 self.functions.push(CompiledFunction {
                     id: *self.func_slots.get(func_id).unwrap_or(&u16::MAX),
+                    address,
                     param_count: func_generator.param_count,
                     local_count: func_generator.next_local_slot,
-                    code: func_generator.code,
                 });
             },
             IrNode::ExternalFunction { .. } => {
@@ -168,9 +136,9 @@ impl CodeGenerator {
 
                 self.functions.push(CompiledFunction {
                     id: *self.func_slots.get(func_id).unwrap_or(&u16::MAX),
+                    address,
                     param_count,
                     local_count: 0,
-                    code: Vec::default(),
                 });
             },
             _ => panic!(),
@@ -212,7 +180,7 @@ impl CodeGenerator {
         let block_node = &nodes[*block_id];
 
         if let IrNode::Label(instructions) = block_node {
-            generator.label_offsets.insert(*block_id, generator.code.len() as u32);
+            self.label_offsets.insert(*block_id, self.code.len() as u32);
             for inst_id in instructions {
                 self.generate_instr(nodes, inst_id, generator);
             }
@@ -228,12 +196,12 @@ impl CodeGenerator {
 
         match instr {
             IrNode::Constant(ir_constant) => {
-                self.emit_constant(ir_constant, generator);
+                self.emit_constant(ir_constant);
                 generator.mark_pushed(instr_id);
             },
             IrNode::Load { variable, .. } => {
                 let slot = *generator.local_slots.get(variable).unwrap();
-                generator.emit_load_local(slot);
+                self.emit_load_local(slot);
                 generator.mark_pushed(instr_id);
             },
             IrNode::Store { src, dst } => {
@@ -246,11 +214,11 @@ impl CodeGenerator {
                 match &nodes[*dst] {
                     IrNode::Variable { .. } => {
                         let slot = *generator.local_slots.get(dst).unwrap();
-                        generator.emit_store_local(slot);
+                        self.emit_store_local(slot);
                     },
                     IrNode::Load { ty: _, variable } => {
                         let slot = *generator.local_slots.get(variable).unwrap();
-                        generator.emit_store_local(slot);
+                        self.emit_store_local(slot);
                     },
                     _ => panic!(),
                 }
@@ -258,7 +226,7 @@ impl CodeGenerator {
             IrNode::Add { ty, lhs, rhs } => {
                 self.generate_instr(nodes, lhs, generator);
                 self.generate_instr(nodes, rhs, generator);
-                self.emit_add(nodes, ty, generator);
+                self.emit_add(nodes, ty);
                 generator.mark_popped(lhs);
                 generator.mark_popped(rhs);
                 generator.mark_pushed(instr_id);
@@ -266,7 +234,7 @@ impl CodeGenerator {
             IrNode::Sub { ty, lhs, rhs } => {
                 self.generate_instr(nodes, lhs, generator);
                 self.generate_instr(nodes, rhs, generator);
-                self.emit_sub(nodes, ty, generator);
+                self.emit_sub(nodes, ty);
                 generator.mark_popped(lhs);
                 generator.mark_popped(rhs);
                 generator.mark_pushed(instr_id);
@@ -274,7 +242,7 @@ impl CodeGenerator {
             IrNode::Mul { ty, lhs, rhs } => {
                 self.generate_instr(nodes, lhs, generator);
                 self.generate_instr(nodes, rhs, generator);
-                self.emit_mul(nodes, ty, generator);
+                self.emit_mul(nodes, ty);
                 generator.mark_popped(lhs);
                 generator.mark_popped(rhs);
                 generator.mark_pushed(instr_id);
@@ -282,7 +250,7 @@ impl CodeGenerator {
             IrNode::Div { ty, lhs, rhs } => {
                 self.generate_instr(nodes, lhs, generator);
                 self.generate_instr(nodes, rhs, generator);
-                self.emit_div(nodes, ty, generator);
+                self.emit_div(nodes, ty);
                 generator.mark_popped(lhs);
                 generator.mark_popped(rhs);
                 generator.mark_pushed(instr_id);
@@ -290,9 +258,9 @@ impl CodeGenerator {
             IrNode::Return(value) => {
                 if let Some(val_id) = value {
                     self.generate_instr(nodes, val_id, generator);
-                    generator.emit(Op::RetValue);
+                    self.emit(Op::RetValue);
                 } else {
-                    generator.emit(Op::Ret);
+                    self.emit(Op::Ret);
                 }
             },
             IrNode::Call { callee, args } => {
@@ -301,7 +269,7 @@ impl CodeGenerator {
                 }
 
                 let callee_id = *self.func_slots.get(callee).unwrap();
-                generator.emit_call(callee_id, args.len() as u8);
+                self.emit_call(callee_id, args.len() as u8);
                 generator.mark_pushed(instr_id);
             },
             IrNode::Mod { ty, lhs, rhs } => todo!(),
@@ -321,7 +289,7 @@ impl CodeGenerator {
             IrNode::LogicalOr { ty, lhs, rhs } => todo!(),
             IrNode::LogicalNot(_) => todo!(),
             IrNode::Branch(dst_block_id) => {
-                generator.mark_jump(Op::Jump, *dst_block_id);
+                self.mark_jump(Op::Jump, *dst_block_id);
             },
             IrNode::ConditionalBranch {
                 condition,
@@ -340,76 +308,114 @@ impl CodeGenerator {
         }
     }
 
-    fn emit_add(&self, nodes: &[IrNode], ty_id: &IrNodeId, generator: &mut FunctionGenerator) {
+    fn emit_add(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
         let ty = &nodes[*ty_id];
         match ty {
-            IrNode::Type(BuiltinType::I32) => generator.emit(Op::AddI32),
-            IrNode::Type(BuiltinType::I64) => generator.emit(Op::AddI64),
-            IrNode::Type(BuiltinType::F32) => generator.emit(Op::AddF32),
-            IrNode::Type(BuiltinType::F64) => generator.emit(Op::AddF64),
+            IrNode::Type(BuiltinType::I32) => self.emit(Op::AddI32),
+            IrNode::Type(BuiltinType::I64) => self.emit(Op::AddI64),
+            IrNode::Type(BuiltinType::F32) => self.emit(Op::AddF32),
+            IrNode::Type(BuiltinType::F64) => self.emit(Op::AddF64),
             _ => panic!(),
         }
     }
 
-    fn emit_sub(&self, nodes: &[IrNode], ty_id: &IrNodeId, generator: &mut FunctionGenerator) {
+    fn emit_sub(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
         let ty = &nodes[*ty_id];
         match ty {
-            IrNode::Type(BuiltinType::I32) => generator.emit(Op::SubI32),
-            IrNode::Type(BuiltinType::I64) => generator.emit(Op::SubI64),
-            IrNode::Type(BuiltinType::F32) => generator.emit(Op::SubF32),
-            IrNode::Type(BuiltinType::F64) => generator.emit(Op::SubF64),
+            IrNode::Type(BuiltinType::I32) => self.emit(Op::SubI32),
+            IrNode::Type(BuiltinType::I64) => self.emit(Op::SubI64),
+            IrNode::Type(BuiltinType::F32) => self.emit(Op::SubF32),
+            IrNode::Type(BuiltinType::F64) => self.emit(Op::SubF64),
             _ => panic!(),
         }
     }
 
-    fn emit_mul(&self, nodes: &[IrNode], ty_id: &IrNodeId, generator: &mut FunctionGenerator) {
+    fn emit_mul(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
         let ty = &nodes[*ty_id];
         match ty {
-            IrNode::Type(BuiltinType::I32) => generator.emit(Op::MulI32),
-            IrNode::Type(BuiltinType::I64) => generator.emit(Op::MulI64),
-            IrNode::Type(BuiltinType::F32) => generator.emit(Op::MulF32),
-            IrNode::Type(BuiltinType::F64) => generator.emit(Op::MulF64),
+            IrNode::Type(BuiltinType::I32) => self.emit(Op::MulI32),
+            IrNode::Type(BuiltinType::I64) => self.emit(Op::MulI64),
+            IrNode::Type(BuiltinType::F32) => self.emit(Op::MulF32),
+            IrNode::Type(BuiltinType::F64) => self.emit(Op::MulF64),
             _ => panic!(),
         }
     }
 
-    fn emit_div(&self, nodes: &[IrNode], ty_id: &IrNodeId, generator: &mut FunctionGenerator) {
+    fn emit_div(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
         let ty = &nodes[*ty_id];
         match ty {
-            IrNode::Type(BuiltinType::I32) => generator.emit(Op::DivI32),
-            IrNode::Type(BuiltinType::I64) => generator.emit(Op::DivI64),
-            IrNode::Type(BuiltinType::F32) => generator.emit(Op::DivF32),
-            IrNode::Type(BuiltinType::F64) => generator.emit(Op::DivF64),
+            IrNode::Type(BuiltinType::I32) => self.emit(Op::DivI32),
+            IrNode::Type(BuiltinType::I64) => self.emit(Op::DivI64),
+            IrNode::Type(BuiltinType::F32) => self.emit(Op::DivF32),
+            IrNode::Type(BuiltinType::F64) => self.emit(Op::DivF64),
             _ => panic!(),
         }
     }
 
-    fn emit_constant(&mut self, constant: &IrConstant, generator: &mut FunctionGenerator) {
+    fn emit_constant(&mut self, constant: &IrConstant) {
         match constant {
-            IrConstant::Null => generator.emit(Op::PushNull),
-            IrConstant::True => generator.emit(Op::PushTrue),
-            IrConstant::False => generator.emit(Op::PushFalse),
-            IrConstant::I32(0) => generator.emit(Op::PushZero),
-            IrConstant::I32(1) => generator.emit(Op::PushOne),
+            IrConstant::Null => self.emit(Op::PushNull),
+            IrConstant::True => self.emit(Op::PushTrue),
+            IrConstant::False => self.emit(Op::PushFalse),
+            IrConstant::I32(0) => self.emit(Op::PushZero),
+            IrConstant::I32(1) => self.emit(Op::PushOne),
             IrConstant::I32(val) => {
-                generator.emit(Op::PushI32);
-                generator.code.extend(val.to_le_bytes());
+                self.emit(Op::PushI32);
+                self.code.extend(val.to_le_bytes());
             },
             IrConstant::U32(val) => {
-                generator.emit(Op::PushI32);
-                generator.code.extend(val.to_le_bytes());
+                self.emit(Op::PushI32);
+                self.code.extend(val.to_le_bytes());
             },
             IrConstant::F32(val) => {
-                generator.emit(Op::PushF32);
-                generator.code.extend(val.to_le_bytes());
+                self.emit(Op::PushF32);
+                self.code.extend(val.to_le_bytes());
             },
             IrConstant::String(s) => {
                 let str_id = self.strings.len() as u16;
                 self.strings.push(s.clone());
 
-                generator.emit(Op::PushString);
-                generator.code.extend(str_id.to_le_bytes());
+                self.emit(Op::PushString);
+                self.code.extend(str_id.to_le_bytes());
             },
+        }
+    }
+
+    fn emit(&mut self, op: Op) { self.code.push(op as u8); }
+
+    fn emit_load_local(&mut self, slot: u16) {
+        self.emit(Op::LoadLocal);
+        self.code.extend(slot.to_le_bytes());
+    }
+
+    fn emit_store_local(&mut self, slot: u16) {
+        self.emit(Op::StoreLocal);
+        self.code.extend(slot.to_le_bytes());
+    }
+
+    fn emit_call(&mut self, func_id: u16, arg_count: u8) {
+        self.emit(Op::Call);
+        self.code.extend(func_id.to_le_bytes());
+        self.code.push(arg_count);
+    }
+
+    fn mark_jump(&mut self, jump_kind: Op, dst_block_id: IrNodeId) {
+        self.emit(jump_kind);
+
+        self.marked_jumps.push(MarkedJump {
+            offset: self.code.len() as u32,
+            dst_block_id,
+        });
+
+        self.code.extend(&[0u8; 4]);
+    }
+
+    fn resolve_jumps(&mut self) {
+        for jump in &self.marked_jumps {
+            let target_offset = *self.label_offsets.get(&jump.dst_block_id).unwrap();
+            let jump_distance = (target_offset as i32 - jump.offset as i32) as u32;
+            let byte_offset = jump.offset as usize;
+            self.code[byte_offset..byte_offset + 4].copy_from_slice(&jump_distance.to_le_bytes());
         }
     }
 }

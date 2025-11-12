@@ -10,11 +10,11 @@ pub enum Op {
     PushTrue = 0x02,
     PushFalse = 0x03,
     // Push a constant number to stack.
-    // Operand 1: (1 byte) constant
+    /// Operand 1: (1 byte) constant
     PushI8 = 0x04,
-    // Operand 1: (2 bytes) constant
+    /// Operand 1: (2 bytes) constant
     PushI16 = 0x05,
-    // Operand 1: (4 bytes) constant
+    /// Operand 1: (4 bytes) constant
     PushI32 = 0x06,
     PushF32 = 0x07,
     // Simple optimization to avoid indirections
@@ -39,22 +39,22 @@ pub enum Op {
     MulF64 = 0x18,
     DivF64 = 0x19,
 
-    // Operand 1: (2 bytes) local slot
+    /// Operand 1: (2 bytes) local slot
     LoadLocal = 0x1A,
-    // Operand 1: (2 bytes) local slot
+    /// Operand 1: (2 bytes) local slot
     StoreLocal = 0x1B,
 
-    // Operand 1: address
+    /// Operand 1: address
     Jump = 0x1C,
 
-    // Function Operations
-    // Operand 1: (2 bytes) function Id
-    // Operand 2: (1 byte) arg count
+    /// Function Operations
+    /// Operand 1: (2 bytes) function Id
+    /// Operand 2: (1 byte) arg count
     Call = 0x1D,
     Ret = 0x1E,
     RetValue = 0x1F,
 
-    // Operand 1: (2 bytes) string Id
+    /// Operand 1: (2 bytes) string Id
     PushString = 0x20,
 }
 
