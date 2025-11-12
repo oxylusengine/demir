@@ -141,6 +141,9 @@ pub enum IrNode {
     },
 
     // Function operations
+    ExternalFunction {
+        ty: IrNodeId,
+    },
     Function {
         ty: IrNodeId,
         starter_block: IrNodeId,

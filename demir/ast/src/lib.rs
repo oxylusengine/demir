@@ -38,8 +38,9 @@ pub enum Statement {
     DeclFunction {
         identifier: Identifier,
         params: Vec<FunctionParam>,
-        body: Box<Statement>,
+        body: Option<Box<Statement>>,
         return_expr: Option<ExpressionId>,
+        external: bool,
     },
 
     DeclVar {
@@ -74,6 +75,11 @@ pub enum Expression {
 }
 
 pub type ExpressionId = usize;
+
+#[derive(Debug, Clone)]
+pub enum Attrib {
+    External,
+}
 
 #[derive(Clone, Debug)]
 pub enum Literal {

@@ -92,6 +92,7 @@ impl<'a> IrModuleBuilder<'a> {
                 params,
                 body,
                 return_expr,
+                external,
             } => {
                 let return_ty_id = if let Some(return_expr) = return_expr {
                     let (_, return_ty) = self.ast.get_expr_with_ty(return_expr).unwrap();
@@ -100,10 +101,14 @@ impl<'a> IrModuleBuilder<'a> {
                     self.lower_type(&BuiltinType::Never)
                 };
 
-                let func_node_id = self.make_node(IrNode::Function {
-                    ty: IrNodeId::MAX,
-                    starter_block: IrNodeId::MAX,
-                });
+                let func_node_id = if !external {
+                    self.make_node(IrNode::Function {
+                        ty: return_ty_id,
+                        starter_block: IrNodeId::MAX,
+                    })
+                } else {
+                    self.make_node(IrNode::ExternalFunction { ty: return_ty_id })
+                };
 
                 self.current_function = Some(func_node_id);
                 self.functions.push(func_node_id);
@@ -119,16 +124,20 @@ impl<'a> IrModuleBuilder<'a> {
                         self.symbols.define(param_identifier.clone(), param_id);
                     });
 
-                let starter_block_id = self.make_block();
-                if let Some(IrNode::Function { ty, starter_block }) = self.get_node_mut(func_node_id) {
-                    *ty = return_ty_id;
-                    *starter_block = starter_block_id;
-                }
+                if !external {
+                    let starter_block_id = self.make_block();
+                    self.set_current_block(starter_block_id);
 
-                self.set_current_block(starter_block_id);
-                self.lower_stmt(body);
-                // Implicit return - only if there is still an active block
-                self.terminate_current_block(IrNode::Return(None));
+                    if let Some(IrNode::Function { starter_block, .. }) = self.get_node_mut(func_node_id) {
+                        *starter_block = starter_block_id;
+                    }
+
+                    if let Some(body) = body {
+                        self.lower_stmt(body);
+                    }
+                    // Implicit return - only if there is still an active block
+                    self.terminate_current_block(IrNode::Return(None));
+                }
 
                 self.symbols.pop_scope();
             },

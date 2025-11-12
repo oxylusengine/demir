@@ -5,6 +5,7 @@ pub enum ParseErrorKind {
     EndOfFile,
     InvalidToken,
     UnexpectedToken { expected: String, got: String },
+    UndefinedAttribute(String),
 }
 
 impl std::fmt::Display for ParseErrorKind {
@@ -12,9 +13,8 @@ impl std::fmt::Display for ParseErrorKind {
         match self {
             Self::EndOfFile => write!(f, "end of file"),
             Self::InvalidToken => write!(f, "invalid token"),
-            Self::UnexpectedToken { expected, got, .. } => {
-                write!(f, "expected '{expected}' got '{got}'")
-            },
+            Self::UnexpectedToken { expected, got, .. } => write!(f, "expected '{expected}' got '{got}'"),
+            Self::UndefinedAttribute(s) => write!(f, "undefined attribute {s}"),
         }
     }
 }
@@ -46,6 +46,13 @@ impl ParseError {
                 expected: expected.to_string(),
                 got: got.to_string(),
             },
+            location,
+        }
+    }
+
+    pub fn undefined_attrib(attrib: impl std::fmt::Display, location: Location) -> Self {
+        Self {
+            kind: ParseErrorKind::UndefinedAttribute(attrib.to_string()),
             location,
         }
     }

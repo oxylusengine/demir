@@ -247,6 +247,7 @@ impl<'a> SemanticAnalyzer<'a> {
                 params,
                 body,
                 return_expr,
+                external: _,
             } => {
                 if self.symbols.lookup(identifier).is_some() {
                     return Err(SemaError::redefinition(identifier));
@@ -283,7 +284,9 @@ impl<'a> SemanticAnalyzer<'a> {
                     );
                 }
 
-                self.check_stmt(body)?;
+                if let Some(body) = body {
+                    self.check_stmt(body)?;
+                }
 
                 self.symbols.pop_scope();
 

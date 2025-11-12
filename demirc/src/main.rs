@@ -8,20 +8,11 @@ use sema::{self};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input = r#"
-fn add(a: i32, b: i32) -> i32 {
-    return a + b;
-}
-
-fn multiply(a: i32, b: i32) -> i32 {
-    return a * b;
-}
+@external
+fn println(msg: str);
 
 fn main() {
-    var x = 5;
-    var y = 10;
-    x = x + y;
-    var z = multiply(x, add(y, 2));
-    y = add(z, x);
+    println("hello from VM");
 }
 "#;
 
@@ -217,6 +208,10 @@ fn print_ir_node(node: &IrNode, node_id: &IrNodeId) {
         } => {
             println!("BranchConditional %{} %{} %{}", condition, true_block, false_block);
             println!("; Ongoing block terminated");
+        },
+
+        IrNode::ExternalFunction { ty } => {
+            println!("%{} = ExternalFunction %{}", node_id, ty);
         },
 
         IrNode::Function { ty, .. } => {

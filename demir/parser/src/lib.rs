@@ -1,6 +1,6 @@
 use core::types::Identifier;
 
-use ast::{AST, Expression, ExpressionId, FunctionParam, Literal, Statement};
+use ast::{AST, Attrib, Expression, ExpressionId, FunctionParam, Literal, Statement};
 use lexer::{
     lexer::Lexer,
     token::{Location, Token},
@@ -86,18 +86,26 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_single_stmt(&mut self) -> ParseResult<Statement> {
-        let (token, location) = self.peek().ok_or(ParseError::end_of_file())?;
+        let mut attributes = Vec::new();
 
-        match token {
-            Token::BraceLeft => self.parse_multi_stmt(),
-            Token::Var => self.parse_decl_var_stmt(),
-            Token::Fn => self.parse_decl_function_stmt(),
-            Token::Return => self.parse_return_stmt(),
-            Token::Identifier(_)
-            | Token::IntegerLiteral(_)
-            | Token::FloatingPointLiteral(_)
-            | Token::StringLiteral(_) => self.parse_expr_stmt(),
-            _ => Err(ParseError::invalid_token(location)),
+        loop {
+            let (token, location) = self.peek().ok_or(ParseError::end_of_file())?;
+            match token {
+                Token::At => {
+                    let attrib = self.parse_attributes()?;
+                    attributes.push(attrib);
+                    continue;
+                },
+                Token::BraceLeft => return self.parse_multi_stmt(),
+                Token::Var => return self.parse_decl_var_stmt(),
+                Token::Fn => return self.parse_decl_function_stmt(attributes),
+                Token::Return => return self.parse_return_stmt(),
+                Token::Identifier(_)
+                | Token::IntegerLiteral(_)
+                | Token::FloatingPointLiteral(_)
+                | Token::StringLiteral(_) => return self.parse_expr_stmt(),
+                _ => return Err(ParseError::invalid_token(location)),
+            }
         }
     }
 
@@ -133,7 +141,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_decl_function_stmt(&mut self) -> ParseResult<Statement> {
+    fn parse_decl_function_stmt(&mut self, attributes: Vec<Attrib>) -> ParseResult<Statement> {
         self.expect_next(Token::Fn)?;
         let identifier = self.parse_identifier()?;
         self.expect_next(Token::ParenLeft)?;
@@ -167,13 +175,21 @@ impl<'a> Parser<'a> {
             None
         };
 
-        let body = self.parse_stmt()?;
+        let is_ext = attributes.iter().any(|attrib| matches!(attrib, Attrib::External));
+
+        let mut body = None;
+        if !is_ext {
+            body = Some(Box::new(self.parse_stmt()?));
+        } else {
+            self.expect_next(Token::Semicolon)?;
+        }
 
         Ok(Statement::DeclFunction {
             identifier,
             params,
-            body: Box::new(body),
+            body,
             return_expr,
+            external: is_ext,
         })
     }
 
@@ -321,6 +337,20 @@ impl<'a> Parser<'a> {
             callee: callee_expr,
             parameters: param_exprs,
         }))
+    }
+
+    fn parse_attributes(&mut self) -> ParseResult<Attrib> {
+        self.expect_next(Token::At)?;
+
+        let start_pos = self.lexer.position();
+        let attrib = self.parse_identifier()?;
+        let end_pos = self.lexer.position();
+        let location = Location::new(start_pos, end_pos);
+
+        match attrib.0.as_str() {
+            "external" => Ok(Attrib::External),
+            _ => Err(ParseError::undefined_attrib(attrib, location)),
+        }
     }
 
     fn peek(&mut self) -> &Option<(Token<'_>, Location)> {

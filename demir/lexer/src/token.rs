@@ -33,7 +33,7 @@ pub enum Token<'a> {
     BraceRight,  // }
     SquareLeft,  // [
     SquareRight, // ]
-    AngleLeft,   //
+    AngleLeft,   // <
     AngleRight,  // >
     BitAnd,      // &
     BitXor,      // ^
@@ -60,7 +60,7 @@ pub enum Token<'a> {
     LogicalOr,       // ||
     CompareEqual,    // ==
     CompareNotEqual, // !=
-    ShiftLeft,       //
+    ShiftLeft,       // <<
     ShiftRight,      // >>
 
     /// Literals

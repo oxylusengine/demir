@@ -144,7 +144,7 @@ impl CodeGenerator {
     fn generate_function(&mut self, nodes: &[IrNode], func_id: &IrNodeId) {
         let func_node = &nodes[*func_id];
         match func_node {
-            IrNode::Function { ty: _, starter_block } => {
+            IrNode::Function { starter_block, .. } => {
                 let mut func_generator = FunctionGenerator {
                     param_count: 0,
                     local_slots: HashMap::new(),
@@ -172,6 +172,26 @@ impl CodeGenerator {
                     param_count: func_generator.param_count,
                     local_count: func_generator.next_local_slot,
                     code: func_generator.code,
+                });
+            },
+            IrNode::ExternalFunction { .. } => {
+                let mut param_count = 0;
+                let mut current_id = func_id + 1;
+                while current_id < nodes.len() {
+                    match &nodes[current_id] {
+                        IrNode::FunctionParam { .. } => {
+                            param_count += 1;
+                            current_id += 1;
+                        },
+                        _ => break,
+                    }
+                }
+
+                self.functions.push(CompiledFunction {
+                    id: *self.func_slots.get(func_id).unwrap_or(&u16::MAX),
+                    param_count,
+                    local_count: 0,
+                    code: Vec::default(),
                 });
             },
             _ => panic!(),
@@ -323,7 +343,6 @@ impl CodeGenerator {
             IrNode::LogicalNot(_) => todo!(),
             IrNode::Branch(dst_block_id) => {
                 generator.mark_jump(Op::Jump, *dst_block_id);
-                todo!()
             },
             IrNode::ConditionalBranch {
                 condition,
@@ -331,6 +350,7 @@ impl CodeGenerator {
                 false_block,
             } => todo!(),
             IrNode::Variable { .. }
+            | IrNode::ExternalFunction { .. }
             | IrNode::Function { .. }
             | IrNode::FunctionParam { .. }
             | IrNode::Module { .. }
