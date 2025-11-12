@@ -23,11 +23,18 @@ pub struct CompiledFunction {
     pub code: Vec<u8>,
 }
 
+struct MarkedJump {
+    offset: u32,
+    dst_block_id: IrNodeId,
+}
+
 struct FunctionGenerator {
     param_count: u8,
     local_slots: HashMap<IrNodeId, u16>,
     next_local_slot: u16,
     ssa_stack: HashSet<IrNodeId>,
+    label_offsets: HashMap<IrNodeId, u32>,
+    marked_jumps: Vec<MarkedJump>,
     code: Vec<u8>,
 }
 
@@ -78,6 +85,26 @@ impl FunctionGenerator {
         self.code.extend(func_id.to_le_bytes());
         self.code.push(arg_count);
     }
+
+    fn mark_jump(&mut self, jump_kind: Op, dst_block_id: IrNodeId) {
+        self.emit(jump_kind);
+
+        self.marked_jumps.push(MarkedJump {
+            offset: self.code.len() as u32,
+            dst_block_id,
+        });
+
+        self.code.extend(&[0u8; 4]);
+    }
+
+    fn resolve_jumps(&mut self) {
+        for jump in &self.marked_jumps {
+            let target_offset = *self.label_offsets.get(&jump.dst_block_id).unwrap();
+            let jump_distance = (target_offset as i32 - jump.offset as i32) as u32;
+            let byte_offset = jump.offset as usize;
+            self.code[byte_offset..byte_offset + 4].copy_from_slice(&jump_distance.to_le_bytes());
+        }
+    }
 }
 
 pub struct CodeGenerator {
@@ -123,6 +150,8 @@ impl CodeGenerator {
                     local_slots: HashMap::new(),
                     next_local_slot: 0,
                     ssa_stack: HashSet::new(),
+                    label_offsets: HashMap::new(),
+                    marked_jumps: Vec::new(),
                     code: Vec::new(),
                 };
 
@@ -135,6 +164,8 @@ impl CodeGenerator {
                 self.reserve_variable_locals(nodes, starter_block, &mut func_generator);
 
                 self.generate_block(nodes, starter_block, &mut func_generator);
+
+                func_generator.resolve_jumps();
 
                 self.functions.push(CompiledFunction {
                     id: *self.func_slots.get(func_id).unwrap_or(&u16::MAX),
@@ -182,6 +213,7 @@ impl CodeGenerator {
         let block_node = &nodes[*block_id];
 
         if let IrNode::Label(instructions) = block_node {
+            generator.label_offsets.insert(*block_id, generator.code.len() as u32);
             for inst_id in instructions {
                 self.generate_instr(nodes, inst_id, generator);
             }
@@ -200,7 +232,7 @@ impl CodeGenerator {
                 generator.emit_constant(ir_constant);
                 generator.mark_pushed(instr_id);
             },
-            IrNode::Load { ty: _, variable } => {
+            IrNode::Load { variable, .. } => {
                 let slot = *generator.local_slots.get(variable).unwrap();
                 generator.emit_load_local(slot);
                 generator.mark_pushed(instr_id);
@@ -289,8 +321,8 @@ impl CodeGenerator {
             IrNode::LogicalAnd { ty, lhs, rhs } => todo!(),
             IrNode::LogicalOr { ty, lhs, rhs } => todo!(),
             IrNode::LogicalNot(_) => todo!(),
-            IrNode::Branch(block_id) => {
-                generator.emit(Op::Jump);
+            IrNode::Branch(dst_block_id) => {
+                generator.mark_jump(Op::Jump, *dst_block_id);
                 todo!()
             },
             IrNode::ConditionalBranch {
