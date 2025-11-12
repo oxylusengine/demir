@@ -161,9 +161,9 @@ pub enum IrConstant {
     Null,
     True,
     False,
-    Int(i64),
-    UInt(u64),
-    Float(f64),
+    I32(i32),
+    U32(u32),
+    F32(f32),
     String(String),
 }
 

@@ -165,6 +165,11 @@ impl<'a> IrModuleBuilder<'a> {
             Statement::Expression(expression) => {
                 self.lower_expr(expression);
             },
+
+            Statement::Return(expression) => {
+                let node_id = self.lower_expr(expression);
+                self.terminate_current_block(IrNode::Return(node_id));
+            },
         }
     }
 
@@ -242,8 +247,8 @@ impl<'a> IrModuleBuilder<'a> {
     fn lower_literal(&mut self, literal: &Literal) -> IrNodeId {
         let constant = match literal {
             Literal::String(s) => IrConstant::String(s.clone()),
-            Literal::Integer(i) => IrConstant::Int(*i),
-            Literal::Float(f) => IrConstant::Float(*f),
+            Literal::Integer(i) => IrConstant::I32(*i),
+            Literal::Float(f) => IrConstant::F32(*f),
             Literal::Bool(b) => IrConstant::from_bool(*b),
         };
 

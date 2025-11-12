@@ -48,6 +48,8 @@ pub enum Statement {
         initial_expr: Option<ExpressionId>,
     },
 
+    Return(ExpressionId),
+
     Expression(ExpressionId),
 }
 
@@ -76,8 +78,8 @@ pub type ExpressionId = usize;
 #[derive(Clone, Debug)]
 pub enum Literal {
     String(String),
-    Integer(i64),
-    Float(f64),
+    Integer(i32),
+    Float(f32),
     Bool(bool),
 }
 

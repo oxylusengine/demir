@@ -1,30 +1,48 @@
 use core::types::BuiltinType;
 
 use ast::lowering::{self};
+use codegen::{CodeGenerator, disasm};
 use ir::{IrConstant, IrNode, IrNodeId};
 use parser::{self};
 use sema::{self};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input = r#"
-fn func(param1: i32) -> i32 {
-    var xd = param1;
-    xd = 2 + 1;
+fn add(a: i32, b: i32) -> i32 {
+    return a + b;
+}
+
+fn multiply(a: i32, b: i32) -> i32 {
+    return a * b;
 }
 
 fn main() {
-    var foo = func(2);
+    var x = 5;
+    var y = 10;
+    x = x + y;
+    var z = multiply(x, add(y, 2));
+    y = add(z, x);
 }
 "#;
 
     let mut ast = parser::parse(input)?;
     ast = sema::analyze(ast)?;
+
+    println!("=== IR ===");
     let ir_module = lowering::lower_ast(ast);
-    if let IrNode::Module { nodes, .. } = ir_module {
+    if let IrNode::Module { nodes, .. } = ir_module.clone() {
         nodes.iter().enumerate().for_each(|(i, n)| {
             print_ir_node(n, &i);
         });
     };
+
+    println!("=== BC ===");
+    let mut codegen = CodeGenerator::new();
+    let module = codegen.generate(&ir_module);
+    module.functions.iter().for_each(|f| match disasm::print_code(&f.code) {
+        Ok(_) => {},
+        Err(_) => panic!(),
+    });
 
     Ok(())
 }
@@ -47,9 +65,9 @@ fn print_ir_node(node: &IrNode, node_id: &IrNodeId) {
                 IrConstant::Null => println!("null"),
                 IrConstant::True => println!("true"),
                 IrConstant::False => println!("false"),
-                IrConstant::Int(s) => println!("i32 {}", s),
-                IrConstant::UInt(s) => println!("u32 {}", s),
-                IrConstant::Float(s) => println!("f32 {}", s),
+                IrConstant::I32(s) => println!("i32 {}", s),
+                IrConstant::U32(s) => println!("u32 {}", s),
+                IrConstant::F32(s) => println!("f32 {}", s),
                 IrConstant::String(s) => println!("str {}", s),
             }
         },
@@ -90,7 +108,7 @@ fn print_ir_node(node: &IrNode, node_id: &IrNodeId) {
         },
 
         IrNode::Store { src, dst } => {
-            println!("%{} = Store %{} %{}", node_id, dst, src);
+            println!("%{} = Store %{} %{}", node_id, src, dst);
         },
 
         IrNode::Add { ty, lhs, rhs } => {

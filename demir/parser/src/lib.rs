@@ -92,6 +92,7 @@ impl<'a> Parser<'a> {
             Token::BraceLeft => self.parse_multi_stmt(),
             Token::Var => self.parse_decl_var_stmt(),
             Token::Fn => self.parse_decl_function_stmt(),
+            Token::Return => self.parse_return_stmt(),
             Token::Identifier(_)
             | Token::IntegerLiteral(_)
             | Token::FloatingPointLiteral(_)
@@ -150,7 +151,7 @@ impl<'a> Parser<'a> {
 
             let param_identifier = self.parse_identifier()?;
             self.expect_next(Token::Colon)?;
-            let param_type_expr = self.parse_expr(Precedence::default())?;
+            let param_type_expr = self.parse_prefix_expr()?;
             params.push(FunctionParam(param_identifier, param_type_expr));
 
             first_param = false;
@@ -174,6 +175,14 @@ impl<'a> Parser<'a> {
             body: Box::new(body),
             return_expr,
         })
+    }
+
+    fn parse_return_stmt(&mut self) -> ParseResult<Statement> {
+        self.expect_next(Token::Return)?;
+        let expr = self.parse_expr(Precedence::default())?;
+        self.expect_next(Token::Semicolon)?;
+
+        Ok(Statement::Return(expr))
     }
 
     fn parse_expr(&mut self, precedence: Precedence) -> ParseResult<ExpressionId> {
@@ -294,8 +303,8 @@ impl<'a> Parser<'a> {
         let (token, location) = self.advance()?;
 
         let literal = match token {
-            Token::IntegerLiteral(s) => Literal::Integer(s.parse::<i64>().unwrap()),
-            Token::FloatingPointLiteral(s) => Literal::Float(s.parse::<f64>().unwrap()),
+            Token::IntegerLiteral(s) => Literal::Integer(s.parse::<i32>().unwrap()),
+            Token::FloatingPointLiteral(s) => Literal::Float(s.parse::<f32>().unwrap()),
             Token::StringLiteral(s) => Literal::String(s.to_string()),
             _ => return Err(ParseError::unexpected("a literal", token, location)),
         };

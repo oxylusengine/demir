@@ -11,6 +11,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "codegen"
+version = "1.0.0"
+dependencies = [
+ "core",
+ "ir",
+]
+
+[[package]]
 name = "core"
 version = "1.0.0"
 
@@ -19,6 +27,7 @@ name = "demirc"
 version = "0.0.0"
 dependencies = [
  "ast",
+ "codegen",
  "core",
  "ir",
  "parser",

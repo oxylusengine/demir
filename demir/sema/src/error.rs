@@ -11,6 +11,8 @@ pub enum SemaErrorKind {
     CannotAssign(String),
     CannotAssignTo { src: String, dst: String },
     AssignToImmutableVar(String),
+    ReturnOutsideFunction,
+    ReturnTypeMismatch { expected: String, got: String },
 }
 
 impl std::fmt::Display for SemaErrorKind {
@@ -20,7 +22,7 @@ impl std::fmt::Display for SemaErrorKind {
             SemaErrorKind::UndefinedVariable(s) => write!(f, "undefined variable {s}"),
             SemaErrorKind::UndefinedType(s) => write!(f, "undefined type {s}"),
             SemaErrorKind::TypeMismatch { expected, got, .. } => {
-                write!(f, "expected '{expected}' got '{got}'")
+                write!(f, "expected type of '{expected}', got '{got}'")
             },
             SemaErrorKind::WrongArgCount { expected, got } => {
                 write!(f, "wrong argument count, expected '{expected}' got '{got}'")
@@ -31,6 +33,10 @@ impl std::fmt::Display for SemaErrorKind {
             SemaErrorKind::CannotAssign(s) => write!(f, "cannot assign to {s}"),
             SemaErrorKind::CannotAssignTo { src, dst } => write!(f, "cannot assign {src} to {dst}"),
             SemaErrorKind::AssignToImmutableVar(s) => write!(f, "cannot assign to immutable variable {s}"),
+            SemaErrorKind::ReturnOutsideFunction => write!(f, "cannot return outside of a function"),
+            SemaErrorKind::ReturnTypeMismatch { expected, got } => {
+                write!(f, "expected a return type of '{expected}', got '{got}'")
+            },
         }
     }
 }
@@ -110,6 +116,21 @@ impl SemaError {
     pub fn cannot_assign_to_immutable(dst: impl std::fmt::Display) -> Self {
         Self {
             kind: SemaErrorKind::AssignToImmutableVar(dst.to_string()),
+        }
+    }
+
+    pub fn return_outside_function() -> Self {
+        Self {
+            kind: SemaErrorKind::ReturnOutsideFunction,
+        }
+    }
+
+    pub fn return_type_mismatch(expected: impl std::fmt::Display, got: impl std::fmt::Display) -> Self {
+        Self {
+            kind: SemaErrorKind::ReturnTypeMismatch {
+                expected: expected.to_string(),
+                got: got.to_string(),
+            },
         }
     }
 }

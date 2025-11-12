@@ -46,10 +46,15 @@ fn literal_type(lit: &Literal) -> BuiltinType {
     }
 }
 
+struct ActiveFunction {
+    return_ty: BuiltinType,
+}
+
 pub struct SemanticAnalyzer<'a> {
     ast: &'a AST,
     symbols: Symbols,
     expr_types: Vec<BuiltinType>,
+    current_function: Option<ActiveFunction>,
 }
 
 impl<'a> SemanticAnalyzer<'a> {
@@ -58,6 +63,7 @@ impl<'a> SemanticAnalyzer<'a> {
             ast,
             symbols: Symbols::new(),
             expr_types: Vec::new(),
+            current_function: None,
         }
     }
 
@@ -257,6 +263,10 @@ impl<'a> SemanticAnalyzer<'a> {
                     Box::new(BuiltinType::Never)
                 };
 
+                self.current_function = Some(ActiveFunction {
+                    return_ty: *return_ty.clone(),
+                });
+
                 let ty = BuiltinType::Function {
                     params: param_types.clone(),
                     return_ty,
@@ -276,6 +286,8 @@ impl<'a> SemanticAnalyzer<'a> {
                 self.check_stmt(body)?;
 
                 self.symbols.pop_scope();
+
+                self.current_function.take();
 
                 Ok(())
             },
@@ -336,6 +348,21 @@ impl<'a> SemanticAnalyzer<'a> {
 
             Statement::Expression(expression) => {
                 self.check_expr(expression)?;
+                Ok(())
+            },
+
+            Statement::Return(expression) => {
+                if self.current_function.is_none() {
+                    return Err(SemaError::return_outside_function());
+                }
+
+                let (_, ty) = self.check_expr(expression)?;
+                if let Some(current_function) = &self.current_function
+                    && current_function.return_ty != ty
+                {
+                    return Err(SemaError::return_type_mismatch(current_function.return_ty.clone(), ty));
+                }
+
                 Ok(())
             },
         }
