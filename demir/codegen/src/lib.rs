@@ -47,29 +47,6 @@ impl FunctionGenerator {
 
     fn emit(&mut self, op: Op) { self.code.push(op as u8); }
 
-    fn emit_constant(&mut self, constant: &IrConstant) {
-        match constant {
-            IrConstant::Null => self.emit(Op::PushNull),
-            IrConstant::True => self.emit(Op::PushTrue),
-            IrConstant::False => self.emit(Op::PushFalse),
-            IrConstant::I32(0) => self.emit(Op::PushZero),
-            IrConstant::I32(1) => self.emit(Op::PushOne),
-            IrConstant::I32(val) => {
-                self.emit(Op::PushI32);
-                self.code.extend(val.to_le_bytes());
-            },
-            IrConstant::U32(val) => {
-                self.emit(Op::PushI32);
-                self.code.extend(val.to_le_bytes());
-            },
-            IrConstant::F32(val) => {
-                self.emit(Op::PushF32);
-                self.code.extend(val.to_le_bytes());
-            },
-            IrConstant::String(_) => todo!(),
-        }
-    }
-
     fn emit_load_local(&mut self, slot: u16) {
         self.emit(Op::LoadLocal);
         self.code.extend(slot.to_le_bytes());
@@ -110,6 +87,7 @@ impl FunctionGenerator {
 pub struct CodeGenerator {
     functions: Vec<CompiledFunction>,
     func_slots: HashMap<IrNodeId, u16>,
+    strings: Vec<String>,
 }
 
 impl CodeGenerator {
@@ -117,6 +95,7 @@ impl CodeGenerator {
         Self {
             functions: Vec::new(),
             func_slots: HashMap::new(),
+            strings: Vec::new(),
         }
     }
 
@@ -229,7 +208,7 @@ impl CodeGenerator {
         }
     }
 
-    fn generate_block(&self, nodes: &[IrNode], block_id: &IrNodeId, generator: &mut FunctionGenerator) {
+    fn generate_block(&mut self, nodes: &[IrNode], block_id: &IrNodeId, generator: &mut FunctionGenerator) {
         let block_node = &nodes[*block_id];
 
         if let IrNode::Label(instructions) = block_node {
@@ -240,7 +219,7 @@ impl CodeGenerator {
         }
     }
 
-    fn generate_instr(&self, nodes: &[IrNode], instr_id: &IrNodeId, generator: &mut FunctionGenerator) {
+    fn generate_instr(&mut self, nodes: &[IrNode], instr_id: &IrNodeId, generator: &mut FunctionGenerator) {
         let instr = &nodes[*instr_id];
 
         if generator.is_on_stack(instr_id) {
@@ -249,7 +228,7 @@ impl CodeGenerator {
 
         match instr {
             IrNode::Constant(ir_constant) => {
-                generator.emit_constant(ir_constant);
+                self.emit_constant(ir_constant, generator);
                 generator.mark_pushed(instr_id);
             },
             IrNode::Load { variable, .. } => {
@@ -402,6 +381,35 @@ impl CodeGenerator {
             IrNode::Type(BuiltinType::F32) => generator.emit(Op::DivF32),
             IrNode::Type(BuiltinType::F64) => generator.emit(Op::DivF64),
             _ => panic!(),
+        }
+    }
+
+    fn emit_constant(&mut self, constant: &IrConstant, generator: &mut FunctionGenerator) {
+        match constant {
+            IrConstant::Null => generator.emit(Op::PushNull),
+            IrConstant::True => generator.emit(Op::PushTrue),
+            IrConstant::False => generator.emit(Op::PushFalse),
+            IrConstant::I32(0) => generator.emit(Op::PushZero),
+            IrConstant::I32(1) => generator.emit(Op::PushOne),
+            IrConstant::I32(val) => {
+                generator.emit(Op::PushI32);
+                generator.code.extend(val.to_le_bytes());
+            },
+            IrConstant::U32(val) => {
+                generator.emit(Op::PushI32);
+                generator.code.extend(val.to_le_bytes());
+            },
+            IrConstant::F32(val) => {
+                generator.emit(Op::PushF32);
+                generator.code.extend(val.to_le_bytes());
+            },
+            IrConstant::String(s) => {
+                let str_id = self.strings.len() as u16;
+                self.strings.push(s.clone());
+
+                generator.emit(Op::PushString);
+                generator.code.extend(str_id.to_le_bytes());
+            },
         }
     }
 }

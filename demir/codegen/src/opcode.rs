@@ -39,20 +39,23 @@ pub enum Op {
     MulF64 = 0x18,
     DivF64 = 0x19,
 
-    // Operand 1: local slot
+    // Operand 1: (2 bytes) local slot
     LoadLocal = 0x1A,
-    // Operand 1: local slot
+    // Operand 1: (2 bytes) local slot
     StoreLocal = 0x1B,
 
     // Operand 1: address
     Jump = 0x1C,
 
     // Function Operations
-    // Operand 1: function Id,
-    // Operand 2: arg count
+    // Operand 1: (2 bytes) function Id
+    // Operand 2: (1 byte) arg count
     Call = 0x1D,
     Ret = 0x1E,
     RetValue = 0x1F,
+
+    // Operand 1: (2 bytes) string Id
+    PushString = 0x20,
 }
 
 impl Op {
@@ -90,6 +93,7 @@ impl Op {
             0x1D => Some(Op::Call),
             0x1E => Some(Op::Ret),
             0x1F => Some(Op::RetValue),
+            0x20 => Some(Op::PushString),
 
             _ => None,
         }
