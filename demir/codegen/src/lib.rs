@@ -474,9 +474,7 @@ impl CodeGenerator {
     fn emit_logical_and(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
         let ty = &nodes[*ty_id];
         match ty {
-            IrNode::Type(BuiltinType::I32) => self.emit(Op::LogicalAndI32),
-            IrNode::Type(BuiltinType::I64) => self.emit(Op::LogicalAndI64),
-            IrNode::Type(BuiltinType::Bool) => self.emit(Op::LogicalAndBool),
+            IrNode::Type(BuiltinType::Bool) => self.emit(Op::LogicalAnd),
             _ => panic!(),
         }
     }
@@ -484,9 +482,7 @@ impl CodeGenerator {
     fn emit_logical_or(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
         let ty = &nodes[*ty_id];
         match ty {
-            IrNode::Type(BuiltinType::I32) => self.emit(Op::LogicalOrI32),
-            IrNode::Type(BuiltinType::I64) => self.emit(Op::LogicalOrI64),
-            IrNode::Type(BuiltinType::Bool) => self.emit(Op::LogicalOrBool),
+            IrNode::Type(BuiltinType::Bool) => self.emit(Op::LogicalOr),
             _ => panic!(),
         }
     }

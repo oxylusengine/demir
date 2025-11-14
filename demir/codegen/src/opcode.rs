@@ -68,20 +68,13 @@ pub enum Op {
     LessThanI64 = 0x2B,
     LessThanEqualI64 = 0x2C,
 
-    LogicalAndI32 = 0x2D,
-    LogicalOrI32 = 0x2E,
-    LogicalNotI32 = 0x2F,
-    LogicalAndI64 = 0x30,
-    LogicalOrI64 = 0x31,
-    LogicalNotI64 = 0x32,
+    LogicalAnd = 0x2D,
+    LogicalOr = 0x2E,
 
     /// Operand 1: (4 bytes) address
     JumpEqual = 0x33,
     /// Operand 1: (4 bytes) address
     JumpNotEqual = 0x34,
-
-    LogicalAndBool = 0x35,
-    LogicalOrBool = 0x36,
 
     ModI32 = 0x37,
     ModI64 = 0x38,
@@ -135,16 +128,10 @@ impl Op {
             0x2A => Some(Op::GreaterThanEqualI64),
             0x2B => Some(Op::LessThanI64),
             0x2C => Some(Op::LessThanEqualI64),
-            0x2D => Some(Op::LogicalAndI32),
-            0x2E => Some(Op::LogicalOrI32),
-            0x2F => Some(Op::LogicalNotI32),
-            0x30 => Some(Op::LogicalAndI64),
-            0x31 => Some(Op::LogicalOrI64),
-            0x32 => Some(Op::LogicalNotI64),
+            0x2D => Some(Op::LogicalAnd),
+            0x2E => Some(Op::LogicalOr),
             0x33 => Some(Op::JumpEqual),
             0x34 => Some(Op::JumpNotEqual),
-            0x35 => Some(Op::LogicalAndBool),
-            0x36 => Some(Op::LogicalOrBool),
             0x37 => Some(Op::ModI32),
             0x38 => Some(Op::ModI64),
 

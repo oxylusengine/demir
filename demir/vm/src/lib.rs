@@ -135,26 +135,26 @@ impl VM {
 
         match op {
             Op::Nop => {},
-            Op::PushNull => self.stack.push(Value::Null),
-            Op::PushTrue => self.stack.push(Value::Bool(true)),
-            Op::PushFalse => self.stack.push(Value::Bool(false)),
-            Op::PushZero => self.stack.push(Value::I32(0)),
-            Op::PushOne => self.stack.push(Value::I32(1)),
+            Op::PushNull => self.push(Value::Null),
+            Op::PushTrue => self.push(Value::Bool(true)),
+            Op::PushFalse => self.push(Value::Bool(false)),
+            Op::PushZero => self.push(Value::I32(0)),
+            Op::PushOne => self.push(Value::I32(1)),
             Op::PushI8 => {
                 let val = self.read_i8()?;
-                self.stack.push(Value::I8(val));
+                self.push(Value::I8(val));
             },
             Op::PushI16 => {
                 let val = self.read_i16()?;
-                self.stack.push(Value::I16(val));
+                self.push(Value::I16(val));
             },
             Op::PushI32 => {
                 let val = self.read_i32()?;
-                self.stack.push(Value::I32(val));
+                self.push(Value::I32(val));
             },
             Op::PushF32 => {
                 let val = self.read_f32()?;
-                self.stack.push(Value::F32(val));
+                self.push(Value::F32(val));
             },
             Op::AddI32 => {
                 let b = self.pop()?.as_i32()?;
@@ -163,7 +163,7 @@ impl VM {
                 if overflowed {
                     self.runtime_error(format!("Integer overflow at instr {}", self.ip));
                 }
-                self.stack.push(Value::I32(val));
+                self.push(Value::I32(val));
             },
             Op::SubI32 => {
                 let b = self.pop()?.as_i32()?;
@@ -172,7 +172,7 @@ impl VM {
                 if overflowed {
                     self.runtime_error(format!("Integer overflow at instr {}", self.ip));
                 }
-                self.stack.push(Value::I32(val));
+                self.push(Value::I32(val));
             },
             Op::MulI32 => {
                 let b = self.pop()?.as_i32()?;
@@ -181,7 +181,7 @@ impl VM {
                 if overflowed {
                     self.runtime_error(format!("Integer overflow at instr {}", self.ip));
                 }
-                self.stack.push(Value::I32(val));
+                self.push(Value::I32(val));
             },
             Op::DivI32 => {
                 let b = self.pop()?.as_i32()?;
@@ -193,7 +193,7 @@ impl VM {
                 if overflowed {
                     self.runtime_error(format!("Integer overflow at instr {}", self.ip));
                 }
-                self.stack.push(Value::I32(val));
+                self.push(Value::I32(val));
             },
             Op::AddI64 => {
                 let b = self.pop()?.as_i64()?;
@@ -202,7 +202,7 @@ impl VM {
                 if overflowed {
                     self.runtime_error(format!("Integer overflow at instr {}", self.ip));
                 }
-                self.stack.push(Value::I64(val));
+                self.push(Value::I64(val));
             },
             Op::SubI64 => {
                 let b = self.pop()?.as_i64()?;
@@ -211,7 +211,7 @@ impl VM {
                 if overflowed {
                     self.runtime_error(format!("Integer overflow at instr {}", self.ip));
                 }
-                self.stack.push(Value::I64(val));
+                self.push(Value::I64(val));
             },
             Op::MulI64 => {
                 let b = self.pop()?.as_i64()?;
@@ -220,7 +220,7 @@ impl VM {
                 if overflowed {
                     self.runtime_error(format!("Integer overflow at instr {}", self.ip));
                 }
-                self.stack.push(Value::I64(val));
+                self.push(Value::I64(val));
             },
             Op::DivI64 => {
                 let b = self.pop()?.as_i64()?;
@@ -232,62 +232,62 @@ impl VM {
                 if overflowed {
                     self.runtime_error(format!("Integer overflow at instr {}", self.ip));
                 }
-                self.stack.push(Value::I64(val));
+                self.push(Value::I64(val));
             },
             Op::AddF32 => {
                 let b = self.pop()?.as_f32()?;
                 let a = self.pop()?.as_f32()?;
-                self.stack.push(Value::F32(a + b));
+                self.push(Value::F32(a + b));
             },
             Op::SubF32 => {
                 let b = self.pop()?.as_f32()?;
                 let a = self.pop()?.as_f32()?;
-                self.stack.push(Value::F32(a - b));
+                self.push(Value::F32(a - b));
             },
             Op::MulF32 => {
                 let b = self.pop()?.as_f32()?;
                 let a = self.pop()?.as_f32()?;
-                self.stack.push(Value::F32(a * b));
+                self.push(Value::F32(a * b));
             },
             Op::DivF32 => {
                 let b = self.pop()?.as_f32()?;
                 let a = self.pop()?.as_f32()?;
-                self.stack.push(Value::F32(a / b));
+                self.push(Value::F32(a / b));
             },
             Op::AddF64 => {
                 let b = self.pop()?.as_f64()?;
                 let a = self.pop()?.as_f64()?;
-                self.stack.push(Value::F64(a + b));
+                self.push(Value::F64(a + b));
             },
             Op::SubF64 => {
                 let b = self.pop()?.as_f64()?;
                 let a = self.pop()?.as_f64()?;
-                self.stack.push(Value::F64(a - b));
+                self.push(Value::F64(a - b));
             },
             Op::MulF64 => {
                 let b = self.pop()?.as_f64()?;
                 let a = self.pop()?.as_f64()?;
-                self.stack.push(Value::F64(a * b));
+                self.push(Value::F64(a * b));
             },
             Op::DivF64 => {
                 let b = self.pop()?.as_f64()?;
                 let a = self.pop()?.as_f64()?;
-                self.stack.push(Value::F64(a / b));
+                self.push(Value::F64(a / b));
             },
             Op::ModI32 => {
                 let b = self.pop()?.as_i32()?;
                 let a = self.pop()?.as_i32()?;
-                self.stack.push(Value::I32(a % b));
+                self.push(Value::I32(a % b));
             },
             Op::ModI64 => {
                 let b = self.pop()?.as_i64()?;
                 let a = self.pop()?.as_i64()?;
-                self.stack.push(Value::I64(a % b));
+                self.push(Value::I64(a % b));
             },
             Op::LoadLocal => {
                 let slot = self.read_u16()?;
                 let value = self.get_local(slot);
-                self.stack.push(value.clone());
+                self.push(value.clone());
             },
             Op::StoreLocal => {
                 let slot = self.read_u16()?;
@@ -317,12 +317,12 @@ impl VM {
                 let return_value = self.pop()?;
 
                 if self.call_frames.len() <= 1 {
-                    self.stack.push(return_value);
+                    self.push(return_value);
                     self.state = State::Finished;
                 } else {
                     let frame = self.call_frames.pop().unwrap();
                     self.stack.truncate(frame.base_stack);
-                    self.stack.push(return_value);
+                    self.push(return_value);
                     self.ip = frame.return_address;
                 }
             },
@@ -330,45 +330,73 @@ impl VM {
             Op::EqualI32 => {
                 let b = self.pop()?.as_i32()?;
                 let a = self.pop()?.as_i32()?;
-                self.stack.push(Value::Bool(a == b));
+                self.push(Value::Bool(a == b));
             },
             Op::NotEqualI32 => {
                 let b = self.pop()?.as_i32()?;
                 let a = self.pop()?.as_i32()?;
-                self.stack.push(Value::Bool(a != b));
+                self.push(Value::Bool(a != b));
             },
             Op::GreaterThanI32 => {
                 let b = self.pop()?.as_i32()?;
                 let a = self.pop()?.as_i32()?;
-                self.stack.push(Value::Bool(a > b));
+                self.push(Value::Bool(a > b));
             },
             Op::GreaterThanEqualI32 => {
                 let b = self.pop()?.as_i32()?;
                 let a = self.pop()?.as_i32()?;
-                self.stack.push(Value::Bool(a >= b));
+                self.push(Value::Bool(a >= b));
             },
             Op::LessThanI32 => {
                 let b = self.pop()?.as_i32()?;
                 let a = self.pop()?.as_i32()?;
-                self.stack.push(Value::Bool(a < b));
+                self.push(Value::Bool(a < b));
             },
             Op::LessThanEqualI32 => {
                 let b = self.pop()?.as_i32()?;
                 let a = self.pop()?.as_i32()?;
-                self.stack.push(Value::Bool(a <= b));
+                self.push(Value::Bool(a <= b));
             },
-            Op::EqualI64 => todo!(),
-            Op::NotEqualI64 => todo!(),
-            Op::GreaterThanI64 => todo!(),
-            Op::GreaterThanEqualI64 => todo!(),
-            Op::LessThanI64 => todo!(),
-            Op::LessThanEqualI64 => todo!(),
-            Op::LogicalAndI32 => todo!(),
-            Op::LogicalOrI32 => todo!(),
-            Op::LogicalNotI32 => todo!(),
-            Op::LogicalAndI64 => todo!(),
-            Op::LogicalOrI64 => todo!(),
-            Op::LogicalNotI64 => todo!(),
+            Op::EqualI64 => {
+                let b = self.pop()?.as_i64()?;
+                let a = self.pop()?.as_i64()?;
+                self.push(Value::Bool(a == b));
+            },
+            Op::NotEqualI64 => {
+                let b = self.pop()?.as_i64()?;
+                let a = self.pop()?.as_i64()?;
+                self.push(Value::Bool(a != b));
+            },
+            Op::GreaterThanI64 => {
+                let b = self.pop()?.as_i64()?;
+                let a = self.pop()?.as_i64()?;
+                self.push(Value::Bool(a > b));
+            },
+            Op::GreaterThanEqualI64 => {
+                let b = self.pop()?.as_i64()?;
+                let a = self.pop()?.as_i64()?;
+                self.push(Value::Bool(a >= b));
+            },
+            Op::LessThanI64 => {
+                let b = self.pop()?.as_i64()?;
+                let a = self.pop()?.as_i64()?;
+                self.push(Value::Bool(a < b));
+            },
+            Op::LessThanEqualI64 => {
+                let b = self.pop()?.as_i64()?;
+                let a = self.pop()?.as_i64()?;
+                self.push(Value::Bool(a <= b));
+            },
+            Op::LogicalAnd => {
+                let b = self.pop()?.as_bool();
+                let a = self.pop()?.as_bool();
+                self.push(Value::Bool(a && b));
+            },
+            Op::LogicalOr => {
+                let b = self.pop()?.as_bool();
+                let a = self.pop()?.as_bool();
+                self.push(Value::Bool(a || b));
+            },
             Op::JumpEqual => {
                 let offset = self.read_u32()?;
                 let cond = self.pop()?.as_bool();
@@ -383,16 +411,6 @@ impl VM {
                     self.ip = offset as usize;
                 }
             },
-            Op::LogicalAndBool => {
-                let b = self.pop()?.as_bool();
-                let a = self.pop()?.as_bool();
-                self.stack.push(Value::Bool(a && b));
-            },
-            Op::LogicalOrBool => {
-                let b = self.pop()?.as_bool();
-                let a = self.pop()?.as_bool();
-                self.stack.push(Value::Bool(a || b));
-            },
         }
 
         Ok(())
@@ -405,6 +423,8 @@ impl VM {
     fn get_local(&self, local_id: u16) -> &Value { self.current_frame().get_local(local_id) }
 
     fn set_local(&mut self, local_id: u16, value: Value) { self.current_frame_mut().set_local(local_id, value) }
+
+    fn push(&mut self, value: Value) { self.stack.push(value); }
 
     fn pop(&mut self) -> Result<Value, String> { self.stack.pop().ok_or("Stack underflow".to_string()) }
 
