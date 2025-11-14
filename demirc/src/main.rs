@@ -10,10 +10,19 @@ use vm::VM;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input = r#"
-fn main() -> bool {
-    var x = 1;
-    var y = 5;
-    return x == 1 && y == 5;
+fn main() -> i32 {
+    var i = 0;
+    while true {
+        i = i + 1;
+
+        if i > 4 {
+            break;
+        }
+
+        i = i + 1;
+    }
+
+    return i;
 }
 "#;
 
@@ -226,7 +235,7 @@ fn print_ir(nodes: &[IrNode], first_node_id: &IrNodeId) {
             },
 
             IrNode::Branch(target) => {
-                println!("Branch %{}", target);
+                println!("%{node_id} = Branch %{}", target);
                 println!("; Ongoing block terminated");
                 node_stack.push(*target);
             },

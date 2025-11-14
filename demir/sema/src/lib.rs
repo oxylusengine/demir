@@ -369,7 +369,11 @@ impl<'a> SemanticAnalyzer<'a> {
                 Ok(())
             },
 
-            Statement::Branch { condition, true_case, false_case } => {
+            Statement::If {
+                condition,
+                true_case,
+                false_case,
+            } => {
                 self.check_expr(condition)?;
                 self.check_stmt(true_case)?;
                 if let Some(false_case) = false_case {
@@ -378,6 +382,15 @@ impl<'a> SemanticAnalyzer<'a> {
 
                 Ok(())
             },
+
+            Statement::While { condition, true_case } => {
+                self.check_expr(condition)?;
+                self.check_stmt(true_case)?;
+
+                Ok(())
+            },
+
+            Statement::Continue | Statement::Break => Ok(()),
         }
     }
 }

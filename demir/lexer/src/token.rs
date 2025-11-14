@@ -15,6 +15,9 @@ pub enum Token<'a> {
     Else,
     True,
     False,
+    While,
+    Continue,
+    Break,
 
     /// Punctuators - Single character
     Equal, // =
@@ -88,6 +91,9 @@ impl<'a> Token<'a> {
             "else" => Token::Else,
             "true" => Token::True,
             "false" => Token::False,
+            "while" => Token::While,
+            "continue" => Token::Continue,
+            "break" => Token::Break,
             _ => Token::Identifier(ident),
         }
     }
@@ -108,6 +114,9 @@ impl std::fmt::Display for Token<'_> {
             Token::Else => write!(f, "else"),
             Token::True => write!(f, "true"),
             Token::False => write!(f, "false"),
+            Token::While => write!(f, "while"),
+            Token::Continue => write!(f, "continue"),
+            Token::Break => write!(f, "break"),
 
             // Single character punctuators
             Token::Equal => write!(f, "="),

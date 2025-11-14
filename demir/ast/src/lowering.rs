@@ -14,6 +14,7 @@ struct IrModuleBuilder<'a> {
     current_block: Option<IrNodeId>,
     current_function: Option<IrNodeId>,
     symbols: SymbolTable<Identifier, IrNodeId>,
+    loop_stack: Vec<(IrNodeId, IrNodeId)>,
 }
 
 impl<'a> IrModuleBuilder<'a> {
@@ -27,6 +28,7 @@ impl<'a> IrModuleBuilder<'a> {
             current_block: None,
             current_function: None,
             symbols: SymbolTable::new(),
+            loop_stack: Vec::new(),
         }
     }
 
@@ -180,7 +182,7 @@ impl<'a> IrModuleBuilder<'a> {
                 self.terminate_current_block(IrNode::Return(node_id));
             },
 
-            Statement::Branch {
+            Statement::If {
                 condition,
                 true_case,
                 false_case,
@@ -219,6 +221,44 @@ impl<'a> IrModuleBuilder<'a> {
                 }
 
                 self.set_current_block(exiting_block);
+            },
+
+            Statement::While { condition, true_case } => {
+                let cond_block = self.make_block();
+                let true_block = self.make_block();
+                let exiting_block = self.make_block();
+                self.loop_stack.push((cond_block, exiting_block));
+
+                self.terminate_current_block(IrNode::Branch(cond_block));
+                self.set_current_block(cond_block);
+                let cond_node_id = self.lower_expr(condition).unwrap();
+
+                self.terminate_current_block(IrNode::ConditionalBranch {
+                    condition: cond_node_id,
+                    true_block,
+                    false_block: exiting_block,
+                });
+
+                self.set_current_block(true_block);
+
+                self.symbols.push_scope();
+                self.lower_stmt(true_case);
+                self.symbols.pop_scope();
+
+                self.terminate_current_block(IrNode::Branch(cond_block));
+
+                self.set_current_block(exiting_block);
+                self.loop_stack.pop();
+            },
+
+            Statement::Continue => {
+                let (continue_block, _) = self.loop_stack.last().unwrap();
+                self.terminate_current_block(IrNode::Branch(*continue_block));
+            },
+
+            Statement::Break => {
+                let (_, break_block) = self.loop_stack.last().unwrap();
+                self.terminate_current_block(IrNode::Branch(*break_block));
             },
         }
     }

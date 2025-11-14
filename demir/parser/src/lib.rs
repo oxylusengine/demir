@@ -101,6 +101,17 @@ impl<'a> Parser<'a> {
                 Token::Fn => return self.parse_decl_function_stmt(attributes),
                 Token::Return => return self.parse_return_stmt(),
                 Token::If => return self.parse_if_stmt(),
+                Token::While => return self.parse_while_stmt(),
+                Token::Continue => {
+                    self.advance()?;
+                    self.expect_next(Token::Semicolon)?;
+                    return Ok(Statement::Continue);
+                },
+                Token::Break => {
+                    self.advance()?;
+                    self.expect_next(Token::Semicolon)?;
+                    return Ok(Statement::Break);
+                },
                 Token::Identifier(_)
                 | Token::IntegerLiteral(_)
                 | Token::FloatingPointLiteral(_)
@@ -218,10 +229,21 @@ impl<'a> Parser<'a> {
             None
         };
 
-        Ok(Statement::Branch {
+        Ok(Statement::If {
             condition: cond_expr,
             true_case,
             false_case,
+        })
+    }
+
+    fn parse_while_stmt(&mut self) -> ParseResult<Statement> {
+        self.expect_next(Token::While)?;
+        let cond_expr = self.parse_expr(Precedence::default())?;
+        let true_case = Box::new(self.parse_stmt()?);
+
+        Ok(Statement::While {
+            condition: cond_expr,
+            true_case,
         })
     }
 
