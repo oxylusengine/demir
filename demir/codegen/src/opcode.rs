@@ -82,6 +82,9 @@ pub enum Op {
 
     LogicalAndBool = 0x35,
     LogicalOrBool = 0x36,
+
+    ModI32 = 0x37,
+    ModI64 = 0x38,
 }
 
 impl Op {
@@ -142,6 +145,8 @@ impl Op {
             0x34 => Some(Op::JumpNotEqual),
             0x35 => Some(Op::LogicalAndBool),
             0x36 => Some(Op::LogicalOrBool),
+            0x37 => Some(Op::ModI32),
+            0x38 => Some(Op::ModI64),
 
             _ => None,
         }

@@ -11,10 +11,7 @@ use vm::VM;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input = r#"
 fn main() -> i32 {
-    var x = 4;
-    if x != 0 && x > 2 {
-        x = 111;
-    }
+    var x = 4 % 3;
 
     return x;
 }

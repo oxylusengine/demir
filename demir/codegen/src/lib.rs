@@ -251,24 +251,9 @@ impl CodeGenerator {
             IrNode::Div { ty, lhs, rhs } => {
                 emit_binary!(self, emit_div, ty, lhs, rhs, nodes, generator, node_id);
             },
-            IrNode::Return(value) => {
-                if let Some(val_id) = value {
-                    self.generate_instr(nodes, val_id, generator);
-                    self.emit(Op::RetValue);
-                } else {
-                    self.emit(Op::Ret);
-                }
+            IrNode::Mod { ty, lhs, rhs } => {
+                emit_binary!(self, emit_mod, ty, lhs, rhs, nodes, generator, node_id);
             },
-            IrNode::Call { callee, args } => {
-                for arg_id in args {
-                    self.generate_instr(nodes, arg_id, generator);
-                }
-
-                let callee_id = *self.func_slots.get(callee).unwrap();
-                self.emit_call(callee_id, args.len() as u8);
-                generator.mark_pushed(node_id);
-            },
-            IrNode::Mod { ty, lhs, rhs } => todo!(),
             IrNode::BitAnd { ty, lhs, rhs } => todo!(),
             IrNode::BitOr { ty, lhs, rhs } => todo!(),
             IrNode::BitXor { ty, lhs, rhs } => todo!(),
@@ -322,6 +307,23 @@ impl CodeGenerator {
                 generator.node_stack.push(*false_block);
                 generator.node_stack.push(*true_block);
             },
+            IrNode::Return(value) => {
+                if let Some(val_id) = value {
+                    self.generate_instr(nodes, val_id, generator);
+                    self.emit(Op::RetValue);
+                } else {
+                    self.emit(Op::Ret);
+                }
+            },
+            IrNode::Call { callee, args } => {
+                for arg_id in args {
+                    self.generate_instr(nodes, arg_id, generator);
+                }
+
+                let callee_id = *self.func_slots.get(callee).unwrap();
+                self.emit_call(callee_id, args.len() as u8);
+                generator.mark_pushed(node_id);
+            },
             IrNode::Variable { .. }
             | IrNode::ExternalFunction { .. }
             | IrNode::Function { .. }
@@ -373,6 +375,15 @@ impl CodeGenerator {
             IrNode::Type(BuiltinType::I64) => self.emit(Op::DivI64),
             IrNode::Type(BuiltinType::F32) => self.emit(Op::DivF32),
             IrNode::Type(BuiltinType::F64) => self.emit(Op::DivF64),
+            _ => panic!(),
+        }
+    }
+
+    fn emit_mod(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
+        let ty = &nodes[*ty_id];
+        match ty {
+            IrNode::Type(BuiltinType::I32) => self.emit(Op::ModI32),
+            IrNode::Type(BuiltinType::I64) => self.emit(Op::ModI64),
             _ => panic!(),
         }
     }

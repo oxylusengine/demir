@@ -32,7 +32,7 @@ pub fn token_to_precedence(token: &Token<'_>) -> Precedence {
         Token::AngleLeft | Token::AngleRight | Token::GreaterEqual | Token::LessEqual => Precedence::CompareRelational,
         Token::ShiftLeft | Token::ShiftRight => Precedence::BitShift,
         Token::Add | Token::Sub => Precedence::Additive,
-        Token::Mul | Token::Div => Precedence::Multiplicative,
+        Token::Mul | Token::Div | Token::Modulo => Precedence::Multiplicative,
 
         _ => Precedence::Invalid,
     }

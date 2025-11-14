@@ -273,6 +273,16 @@ impl VM {
                 let a = self.pop()?.as_f64()?;
                 self.stack.push(Value::F64(a / b));
             },
+            Op::ModI32 => {
+                let b = self.pop()?.as_i32()?;
+                let a = self.pop()?.as_i32()?;
+                self.stack.push(Value::I32(a % b));
+            },
+            Op::ModI64 => {
+                let b = self.pop()?.as_i64()?;
+                let a = self.pop()?.as_i64()?;
+                self.stack.push(Value::I64(a % b));
+            },
             Op::LoadLocal => {
                 let slot = self.read_u16()?;
                 let value = self.get_local(slot);
@@ -365,7 +375,11 @@ impl VM {
                 let a = self.pop()?.as_bool();
                 self.stack.push(Value::Bool(a && b));
             },
-            Op::LogicalOrBool => todo!(),
+            Op::LogicalOrBool => {
+                let b = self.pop()?.as_bool();
+                let a = self.pop()?.as_bool();
+                self.stack.push(Value::Bool(a || b));
+            },
         }
 
         Ok(())
