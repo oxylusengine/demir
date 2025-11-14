@@ -8,6 +8,19 @@ use ir::{IrConstant, IrNode, IrNodeId};
 
 use crate::opcode::Op;
 
+macro_rules! emit_binary {
+    (
+        $self:ident, $emit_fn:ident, $ty:ident, $lhs:ident, $rhs:ident, $nodes:ident, $generator:ident, $node_id:ident
+    ) => {
+        $self.generate_instr($nodes, $lhs, $generator);
+        $self.generate_instr($nodes, $rhs, $generator);
+        $self.$emit_fn($nodes, $ty);
+        $generator.mark_popped($lhs);
+        $generator.mark_popped($rhs);
+        $generator.mark_pushed($node_id);
+    };
+}
+
 #[derive(Debug, Clone)]
 pub struct Module {
     pub magic: [u8; 4],
@@ -31,10 +44,13 @@ struct MarkedJump {
 }
 
 struct FunctionGenerator {
+    address: u32,
     param_count: u8,
     local_slots: HashMap<IrNodeId, u16>,
     next_local_slot: u16,
     ssa_stack: HashSet<IrNodeId>,
+    node_stack: Vec<IrNodeId>,
+    visited_nodes: HashSet<IrNodeId>,
 }
 
 impl FunctionGenerator {
@@ -97,11 +113,14 @@ impl CodeGenerator {
         let func_node = &nodes[*func_id];
         match func_node {
             IrNode::Function { starter_block, .. } => {
-                let mut func_generator = FunctionGenerator {
+                let mut generator = FunctionGenerator {
+                    address,
                     param_count: 0,
                     local_slots: HashMap::new(),
                     next_local_slot: 0,
                     ssa_stack: HashSet::new(),
+                    node_stack: Vec::new(),
+                    visited_nodes: HashSet::new(),
                 };
 
                 // LOCAL SLOT RESERVATION ORDER:
@@ -109,16 +128,24 @@ impl CodeGenerator {
                 // - Variables
                 // - Temporaries
 
-                self.reserve_parameter_locals(nodes, func_id, &mut func_generator);
-                self.reserve_variable_locals(nodes, starter_block, &mut func_generator);
+                self.reserve_parameter_locals(nodes, func_id, &mut generator);
+                self.reserve_variable_locals(nodes, starter_block, &mut generator);
 
-                self.generate_block(nodes, starter_block, &mut func_generator);
+                generator.node_stack.push(*starter_block);
+                while let Some(node_id) = generator.node_stack.pop() {
+                    if generator.visited_nodes.contains(&node_id) {
+                        continue;
+                    }
+
+                    generator.visited_nodes.insert(node_id);
+                    self.generate_instr(nodes, &node_id, &mut generator);
+                }
 
                 self.functions.push(CompiledFunction {
                     id: *self.func_slots.get(func_id).unwrap_or(&u16::MAX),
                     address,
-                    param_count: func_generator.param_count,
-                    local_count: func_generator.next_local_slot,
+                    param_count: generator.param_count,
+                    local_count: generator.next_local_slot,
                 });
             },
             IrNode::ExternalFunction { .. } => {
@@ -176,33 +203,22 @@ impl CodeGenerator {
         }
     }
 
-    fn generate_block(&mut self, nodes: &[IrNode], block_id: &IrNodeId, generator: &mut FunctionGenerator) {
-        let block_node = &nodes[*block_id];
+    fn generate_instr(&mut self, nodes: &[IrNode], node_id: &IrNodeId, generator: &mut FunctionGenerator) {
+        let instr = &nodes[*node_id];
 
-        if let IrNode::Label(instructions) = block_node {
-            self.label_offsets.insert(*block_id, self.code.len() as u32);
-            for inst_id in instructions {
-                self.generate_instr(nodes, inst_id, generator);
-            }
-        }
-    }
-
-    fn generate_instr(&mut self, nodes: &[IrNode], instr_id: &IrNodeId, generator: &mut FunctionGenerator) {
-        let instr = &nodes[*instr_id];
-
-        if generator.is_on_stack(instr_id) {
+        if generator.is_on_stack(node_id) {
             return;
         }
 
         match instr {
             IrNode::Constant(ir_constant) => {
                 self.emit_constant(ir_constant);
-                generator.mark_pushed(instr_id);
+                generator.mark_pushed(node_id);
             },
             IrNode::Load { variable, .. } => {
                 let slot = *generator.local_slots.get(variable).unwrap();
                 self.emit_load_local(slot);
-                generator.mark_pushed(instr_id);
+                generator.mark_pushed(node_id);
             },
             IrNode::Store { src, dst } => {
                 if !generator.is_on_stack(src) {
@@ -216,7 +232,7 @@ impl CodeGenerator {
                         let slot = *generator.local_slots.get(dst).unwrap();
                         self.emit_store_local(slot);
                     },
-                    IrNode::Load { ty: _, variable } => {
+                    IrNode::Load { variable, .. } => {
                         let slot = *generator.local_slots.get(variable).unwrap();
                         self.emit_store_local(slot);
                     },
@@ -224,36 +240,16 @@ impl CodeGenerator {
                 }
             },
             IrNode::Add { ty, lhs, rhs } => {
-                self.generate_instr(nodes, lhs, generator);
-                self.generate_instr(nodes, rhs, generator);
-                self.emit_add(nodes, ty);
-                generator.mark_popped(lhs);
-                generator.mark_popped(rhs);
-                generator.mark_pushed(instr_id);
+                emit_binary!(self, emit_add, ty, lhs, rhs, nodes, generator, node_id);
             },
             IrNode::Sub { ty, lhs, rhs } => {
-                self.generate_instr(nodes, lhs, generator);
-                self.generate_instr(nodes, rhs, generator);
-                self.emit_sub(nodes, ty);
-                generator.mark_popped(lhs);
-                generator.mark_popped(rhs);
-                generator.mark_pushed(instr_id);
+                emit_binary!(self, emit_sub, ty, lhs, rhs, nodes, generator, node_id);
             },
             IrNode::Mul { ty, lhs, rhs } => {
-                self.generate_instr(nodes, lhs, generator);
-                self.generate_instr(nodes, rhs, generator);
-                self.emit_mul(nodes, ty);
-                generator.mark_popped(lhs);
-                generator.mark_popped(rhs);
-                generator.mark_pushed(instr_id);
+                emit_binary!(self, emit_mul, ty, lhs, rhs, nodes, generator, node_id);
             },
             IrNode::Div { ty, lhs, rhs } => {
-                self.generate_instr(nodes, lhs, generator);
-                self.generate_instr(nodes, rhs, generator);
-                self.emit_div(nodes, ty);
-                generator.mark_popped(lhs);
-                generator.mark_popped(rhs);
-                generator.mark_pushed(instr_id);
+                emit_binary!(self, emit_div, ty, lhs, rhs, nodes, generator, node_id);
             },
             IrNode::Return(value) => {
                 if let Some(val_id) = value {
@@ -270,7 +266,7 @@ impl CodeGenerator {
 
                 let callee_id = *self.func_slots.get(callee).unwrap();
                 self.emit_call(callee_id, args.len() as u8);
-                generator.mark_pushed(instr_id);
+                generator.mark_pushed(node_id);
             },
             IrNode::Mod { ty, lhs, rhs } => todo!(),
             IrNode::BitAnd { ty, lhs, rhs } => todo!(),
@@ -279,30 +275,59 @@ impl CodeGenerator {
             IrNode::BitNot(_) => todo!(),
             IrNode::ShiftLeft { ty, lhs, rhs } => todo!(),
             IrNode::ShiftRight { ty, lhs, rhs } => todo!(),
-            IrNode::Equal { ty, lhs, rhs } => todo!(),
-            IrNode::NotEqual { ty, lhs, rhs } => todo!(),
-            IrNode::GreaterThan { ty, lhs, rhs } => todo!(),
-            IrNode::GreaterThanOrEqual { ty, lhs, rhs } => todo!(),
-            IrNode::LessThan { ty, lhs, rhs } => todo!(),
-            IrNode::LessThanOrEqual { ty, lhs, rhs } => todo!(),
-            IrNode::LogicalAnd { ty, lhs, rhs } => todo!(),
-            IrNode::LogicalOr { ty, lhs, rhs } => todo!(),
+            IrNode::Equal { ty, lhs, rhs } => {
+                emit_binary!(self, emit_equal, ty, lhs, rhs, nodes, generator, node_id);
+            },
+            IrNode::NotEqual { ty, lhs, rhs } => {
+                emit_binary!(self, emit_not_equal, ty, lhs, rhs, nodes, generator, node_id);
+            },
+            IrNode::GreaterThan { ty, lhs, rhs } => {
+                emit_binary!(self, emit_greater_than, ty, lhs, rhs, nodes, generator, node_id);
+            },
+            IrNode::GreaterThanOrEqual { ty, lhs, rhs } => {
+                emit_binary!(self, emit_greater_than_equal, ty, lhs, rhs, nodes, generator, node_id);
+            },
+            IrNode::LessThan { ty, lhs, rhs } => {
+                emit_binary!(self, emit_less_than, ty, lhs, rhs, nodes, generator, node_id);
+            },
+            IrNode::LessThanOrEqual { ty, lhs, rhs } => {
+                emit_binary!(self, emit_less_than_equal, ty, lhs, rhs, nodes, generator, node_id);
+            },
+            IrNode::LogicalAnd { ty, lhs, rhs } => {
+                emit_binary!(self, emit_logical_and, ty, lhs, rhs, nodes, generator, node_id);
+            },
+            IrNode::LogicalOr { ty, lhs, rhs } => {
+                emit_binary!(self, emit_logical_or, ty, lhs, rhs, nodes, generator, node_id);
+            },
             IrNode::LogicalNot(_) => todo!(),
+            IrNode::Label(instructions) => {
+                let func_relative_addr = self.code.len() as u32 - generator.address;
+                self.label_offsets.insert(*node_id, func_relative_addr);
+                instructions
+                    .iter()
+                    .rev()
+                    .for_each(|instr| generator.node_stack.push(*instr));
+            },
             IrNode::Branch(dst_block_id) => {
-                self.mark_jump(Op::Jump, *dst_block_id);
+                self.mark_jump(Op::Jump, *dst_block_id, generator);
+                generator.node_stack.push(*dst_block_id);
             },
             IrNode::ConditionalBranch {
                 condition,
                 true_block,
                 false_block,
-            } => todo!(),
+            } => {
+                self.generate_instr(nodes, condition, generator);
+                self.mark_jump(Op::JumpNotEqual, *false_block, generator);
+                generator.node_stack.push(*false_block);
+                generator.node_stack.push(*true_block);
+            },
             IrNode::Variable { .. }
             | IrNode::ExternalFunction { .. }
             | IrNode::Function { .. }
             | IrNode::FunctionParam { .. }
             | IrNode::Module { .. }
-            | IrNode::Type { .. }
-            | IrNode::Label { .. } => {
+            | IrNode::Type { .. } => {
                 // These are handled previously
             },
         }
@@ -348,6 +373,80 @@ impl CodeGenerator {
             IrNode::Type(BuiltinType::I64) => self.emit(Op::DivI64),
             IrNode::Type(BuiltinType::F32) => self.emit(Op::DivF32),
             IrNode::Type(BuiltinType::F64) => self.emit(Op::DivF64),
+            _ => panic!(),
+        }
+    }
+
+    fn emit_equal(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
+        let ty = &nodes[*ty_id];
+        match ty {
+            IrNode::Type(BuiltinType::I32) => self.emit(Op::EqualI32),
+            IrNode::Type(BuiltinType::I64) => self.emit(Op::EqualI64),
+            _ => panic!(),
+        }
+    }
+
+    fn emit_not_equal(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
+        let ty = &nodes[*ty_id];
+        match ty {
+            IrNode::Type(BuiltinType::I32) => self.emit(Op::NotEqualI32),
+            IrNode::Type(BuiltinType::I64) => self.emit(Op::NotEqualI64),
+            _ => panic!(),
+        }
+    }
+
+    fn emit_greater_than(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
+        let ty = &nodes[*ty_id];
+        match ty {
+            IrNode::Type(BuiltinType::I32) => self.emit(Op::GreaterThanI32),
+            IrNode::Type(BuiltinType::I64) => self.emit(Op::GreaterThanI64),
+            _ => panic!(),
+        }
+    }
+
+    fn emit_greater_than_equal(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
+        let ty = &nodes[*ty_id];
+        match ty {
+            IrNode::Type(BuiltinType::I32) => self.emit(Op::GreaterThanEqualI32),
+            IrNode::Type(BuiltinType::I64) => self.emit(Op::GreaterThanEqualI64),
+            _ => panic!(),
+        }
+    }
+
+    fn emit_less_than(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
+        let ty = &nodes[*ty_id];
+        match ty {
+            IrNode::Type(BuiltinType::I32) => self.emit(Op::LessThanI32),
+            IrNode::Type(BuiltinType::I64) => self.emit(Op::LessThanI64),
+            _ => panic!(),
+        }
+    }
+
+    fn emit_less_than_equal(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
+        let ty = &nodes[*ty_id];
+        match ty {
+            IrNode::Type(BuiltinType::I32) => self.emit(Op::LessThanEqualI32),
+            IrNode::Type(BuiltinType::I64) => self.emit(Op::LessThanEqualI64),
+            _ => panic!(),
+        }
+    }
+
+    fn emit_logical_and(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
+        let ty = &nodes[*ty_id];
+        match ty {
+            IrNode::Type(BuiltinType::I32) => self.emit(Op::LogicalAndI32),
+            IrNode::Type(BuiltinType::I64) => self.emit(Op::LogicalAndI64),
+            IrNode::Type(BuiltinType::Bool) => self.emit(Op::LogicalAndBool),
+            _ => panic!(),
+        }
+    }
+
+    fn emit_logical_or(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
+        let ty = &nodes[*ty_id];
+        match ty {
+            IrNode::Type(BuiltinType::I32) => self.emit(Op::LogicalOrI32),
+            IrNode::Type(BuiltinType::I64) => self.emit(Op::LogicalOrI64),
+            IrNode::Type(BuiltinType::Bool) => self.emit(Op::LogicalOrBool),
             _ => panic!(),
         }
     }
@@ -399,11 +498,11 @@ impl CodeGenerator {
         self.code.push(arg_count);
     }
 
-    fn mark_jump(&mut self, jump_kind: Op, dst_block_id: IrNodeId) {
+    fn mark_jump(&mut self, jump_kind: Op, dst_block_id: IrNodeId, generator: &mut FunctionGenerator) {
         self.emit(jump_kind);
 
         self.marked_jumps.push(MarkedJump {
-            offset: self.code.len() as u32,
+            offset: self.code.len() as u32 - generator.address,
             dst_block_id,
         });
 
@@ -413,9 +512,8 @@ impl CodeGenerator {
     fn resolve_jumps(&mut self) {
         for jump in &self.marked_jumps {
             let target_offset = *self.label_offsets.get(&jump.dst_block_id).unwrap();
-            let jump_distance = (target_offset as i32 - jump.offset as i32) as u32;
             let byte_offset = jump.offset as usize;
-            self.code[byte_offset..byte_offset + 4].copy_from_slice(&jump_distance.to_le_bytes());
+            self.code[byte_offset..byte_offset + 4].copy_from_slice(&target_offset.to_le_bytes());
         }
     }
 }

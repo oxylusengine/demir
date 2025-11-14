@@ -16,7 +16,7 @@ fn is_assignable(ty: &BuiltinType) -> bool {
         BuiltinType::String => false,
         BuiltinType::Never => false,
         BuiltinType::Unit => false,
-        BuiltinType::Function { params: _, return_ty } => is_assignable(return_ty),
+        BuiltinType::Function { return_ty, .. } => is_assignable(return_ty),
         _ => true,
     }
 }
@@ -247,7 +247,7 @@ impl<'a> SemanticAnalyzer<'a> {
                 params,
                 body,
                 return_expr,
-                external: _,
+                ..
             } => {
                 if self.symbols.lookup(identifier).is_some() {
                     return Err(SemaError::redefinition(identifier));
@@ -364,6 +364,16 @@ impl<'a> SemanticAnalyzer<'a> {
                     && current_function.return_ty != ty
                 {
                     return Err(SemaError::return_type_mismatch(current_function.return_ty.clone(), ty));
+                }
+
+                Ok(())
+            },
+
+            Statement::Branch { condition, true_case, false_case } => {
+                self.check_expr(condition)?;
+                self.check_stmt(true_case)?;
+                if let Some(false_case) = false_case {
+                    self.check_stmt(false_case)?;
                 }
 
                 Ok(())

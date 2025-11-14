@@ -21,7 +21,6 @@ pub enum Op {
     PushZero = 0x08,
     PushOne = 0x09,
 
-    // Arithmetic Operations
     AddI32 = 0x0A,
     SubI32 = 0x0B,
     MulI32 = 0x0C,
@@ -44,10 +43,9 @@ pub enum Op {
     /// Operand 1: (2 bytes) local slot
     StoreLocal = 0x1B,
 
-    /// Operand 1: address
+    /// Operand 1: (4 bytes) address
     Jump = 0x1C,
 
-    /// Function Operations
     /// Operand 1: (2 bytes) function Id
     /// Operand 2: (1 byte) arg count
     Call = 0x1D,
@@ -56,6 +54,34 @@ pub enum Op {
 
     /// Operand 1: (2 bytes) string Id
     PushString = 0x20,
+
+    EqualI32 = 0x21,
+    NotEqualI32 = 0x22,
+    GreaterThanI32 = 0x23,
+    GreaterThanEqualI32 = 0x24,
+    LessThanI32 = 0x25,
+    LessThanEqualI32 = 0x26,
+    EqualI64 = 0x27,
+    NotEqualI64 = 0x28,
+    GreaterThanI64 = 0x29,
+    GreaterThanEqualI64 = 0x2A,
+    LessThanI64 = 0x2B,
+    LessThanEqualI64 = 0x2C,
+
+    LogicalAndI32 = 0x2D,
+    LogicalOrI32 = 0x2E,
+    LogicalNotI32 = 0x2F,
+    LogicalAndI64 = 0x30,
+    LogicalOrI64 = 0x31,
+    LogicalNotI64 = 0x32,
+
+    /// Operand 1: (4 bytes) address
+    JumpEqual = 0x33,
+    /// Operand 1: (4 bytes) address
+    JumpNotEqual = 0x34,
+
+    LogicalAndBool = 0x35,
+    LogicalOrBool = 0x36,
 }
 
 impl Op {
@@ -94,6 +120,28 @@ impl Op {
             0x1E => Some(Op::Ret),
             0x1F => Some(Op::RetValue),
             0x20 => Some(Op::PushString),
+            0x21 => Some(Op::EqualI32),
+            0x22 => Some(Op::NotEqualI32),
+            0x23 => Some(Op::GreaterThanI32),
+            0x24 => Some(Op::GreaterThanEqualI32),
+            0x25 => Some(Op::LessThanI32),
+            0x26 => Some(Op::LessThanEqualI32),
+            0x27 => Some(Op::EqualI64),
+            0x28 => Some(Op::NotEqualI64),
+            0x29 => Some(Op::GreaterThanI64),
+            0x2A => Some(Op::GreaterThanEqualI64),
+            0x2B => Some(Op::LessThanI64),
+            0x2C => Some(Op::LessThanEqualI64),
+            0x2D => Some(Op::LogicalAndI32),
+            0x2E => Some(Op::LogicalOrI32),
+            0x2F => Some(Op::LogicalNotI32),
+            0x30 => Some(Op::LogicalAndI64),
+            0x31 => Some(Op::LogicalOrI64),
+            0x32 => Some(Op::LogicalNotI64),
+            0x33 => Some(Op::JumpEqual),
+            0x34 => Some(Op::JumpNotEqual),
+            0x35 => Some(Op::LogicalAndBool),
+            0x36 => Some(Op::LogicalOrBool),
 
             _ => None,
         }

@@ -179,6 +179,47 @@ impl<'a> IrModuleBuilder<'a> {
                 let node_id = self.lower_expr(expression);
                 self.terminate_current_block(IrNode::Return(node_id));
             },
+
+            Statement::Branch {
+                condition,
+                true_case,
+                false_case,
+            } => {
+                let cond_node_id = self.lower_expr(condition).unwrap();
+                let true_block = self.make_block();
+                let false_block = self.make_block();
+                let exiting_block = if false_case.is_some() {
+                    self.make_block()
+                } else {
+                    false_block
+                };
+
+                self.terminate_current_block(IrNode::ConditionalBranch {
+                    condition: cond_node_id,
+                    true_block,
+                    false_block,
+                });
+
+                self.set_current_block(true_block);
+
+                self.symbols.push_scope();
+                self.lower_stmt(true_case);
+                self.symbols.pop_scope();
+
+                self.terminate_current_block(IrNode::Branch(exiting_block));
+
+                if let Some(false_case) = false_case {
+                    self.set_current_block(false_block);
+
+                    self.symbols.push_scope();
+                    self.lower_stmt(false_case);
+                    self.symbols.pop_scope();
+
+                    self.terminate_current_block(IrNode::Branch(exiting_block));
+                }
+
+                self.set_current_block(exiting_block);
+            },
         }
     }
 
@@ -261,7 +302,9 @@ impl<'a> IrModuleBuilder<'a> {
             Literal::Bool(b) => IrConstant::from_bool(*b),
         };
 
-        self.make_node(IrNode::Constant(constant))
+        let constant_id = self.make_node(IrNode::Constant(constant));
+        self.globals.push(constant_id);
+        constant_id
     }
 
     fn lower_binary_op(&mut self, ty: &BuiltinType, op: &BinaryOp, lhs: &IrNodeId, rhs: &IrNodeId) -> Option<IrNodeId> {

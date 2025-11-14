@@ -11,6 +11,10 @@ pub enum Token<'a> {
     Var,
     Fn,
     Return,
+    If,
+    Else,
+    True,
+    False,
 
     /// Punctuators - Single character
     Equal, // =
@@ -80,6 +84,10 @@ impl<'a> Token<'a> {
             "var" => Token::Var,
             "fn" => Token::Fn,
             "return" => Token::Return,
+            "if" => Token::If,
+            "else" => Token::Else,
+            "true" => Token::True,
+            "false" => Token::False,
             _ => Token::Identifier(ident),
         }
     }
@@ -96,6 +104,10 @@ impl std::fmt::Display for Token<'_> {
             Token::Var => write!(f, "var"),
             Token::Fn => write!(f, "fn"),
             Token::Return => write!(f, "return"),
+            Token::If => write!(f, "if"),
+            Token::Else => write!(f, "else"),
+            Token::True => write!(f, "true"),
+            Token::False => write!(f, "false"),
 
             // Single character punctuators
             Token::Equal => write!(f, "="),

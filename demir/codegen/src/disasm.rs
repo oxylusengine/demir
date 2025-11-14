@@ -10,7 +10,7 @@ pub fn print_code(code: &[u8]) -> Result<(), TryFromSliceError> {
         }
 
         let op = Op::from_u8(code[ip]).unwrap();
-        print!("{:08X}: {:?}", ip, op);
+        print!("0x{:08X}: {:?}", ip, op);
         ip += 1;
 
         match op {
@@ -43,10 +43,10 @@ pub fn print_code(code: &[u8]) -> Result<(), TryFromSliceError> {
                 println!(" local[{}]", slot);
                 ip += 2;
             },
-            Op::Jump => {
+            Op::Jump | Op::JumpEqual | Op::JumpNotEqual => {
                 let bytes = &code[ip..ip + 4];
                 let offset = u32::from_le_bytes(bytes.try_into()?);
-                println!(" -> 0x{:08X}", ip as u32 + offset);
+                println!(" 0x{:08X}", offset);
                 ip += 4;
             },
             Op::Call => {

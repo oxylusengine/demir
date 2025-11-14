@@ -100,6 +100,7 @@ impl<'a> Parser<'a> {
                 Token::Var => return self.parse_decl_var_stmt(),
                 Token::Fn => return self.parse_decl_function_stmt(attributes),
                 Token::Return => return self.parse_return_stmt(),
+                Token::If => return self.parse_if_stmt(),
                 Token::Identifier(_)
                 | Token::IntegerLiteral(_)
                 | Token::FloatingPointLiteral(_)
@@ -201,6 +202,29 @@ impl<'a> Parser<'a> {
         Ok(Statement::Return(expr))
     }
 
+    fn parse_if_stmt(&mut self) -> ParseResult<Statement> {
+        self.expect_next(Token::If)?;
+        let cond_expr = self.parse_expr(Precedence::default())?;
+        let true_case = Box::new(self.parse_stmt()?);
+
+        let false_case = if self.peek_is(Token::Else) {
+            self.advance()?;
+            if self.peek_is(Token::If) {
+                Some(Box::new(self.parse_if_stmt()?))
+            } else {
+                Some(Box::new(self.parse_stmt()?))
+            }
+        } else {
+            None
+        };
+
+        Ok(Statement::Branch {
+            condition: cond_expr,
+            true_case,
+            false_case,
+        })
+    }
+
     fn parse_expr(&mut self, precedence: Precedence) -> ParseResult<ExpressionId> {
         let postfix_expr = self.parse_postfix_expr()?;
         self.parse_expr_with_precedence(precedence, postfix_expr)
@@ -269,9 +293,11 @@ impl<'a> Parser<'a> {
         let (token, location) = self.peek().ok_or(ParseError::end_of_file())?;
         match token {
             Token::Identifier(_) => self.parse_identifier_expr(),
-            Token::IntegerLiteral(_) | Token::FloatingPointLiteral(_) | Token::StringLiteral(_) => {
-                self.parse_literal_expr()
-            },
+            Token::IntegerLiteral(_)
+            | Token::FloatingPointLiteral(_)
+            | Token::StringLiteral(_)
+            | Token::True
+            | Token::False => self.parse_literal_expr(),
             _ => Err(ParseError::unexpected("a prefix expression", token, location)),
         }
     }
@@ -322,6 +348,8 @@ impl<'a> Parser<'a> {
             Token::IntegerLiteral(s) => Literal::Integer(s.parse::<i32>().unwrap()),
             Token::FloatingPointLiteral(s) => Literal::Float(s.parse::<f32>().unwrap()),
             Token::StringLiteral(s) => Literal::String(s.to_string()),
+            Token::True => Literal::Bool(true),
+            Token::False => Literal::Bool(false),
             _ => return Err(ParseError::unexpected("a literal", token, location)),
         };
 

@@ -51,6 +51,12 @@ pub enum Statement {
 
     Return(ExpressionId),
 
+    Branch {
+        condition: ExpressionId,
+        true_case: Box<Statement>,
+        false_case: Option<Box<Statement>>,
+    },
+
     Expression(ExpressionId),
 }
 
