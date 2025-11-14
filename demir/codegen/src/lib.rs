@@ -189,16 +189,45 @@ impl CodeGenerator {
     }
 
     fn reserve_variable_locals(&self, nodes: &[IrNode], block_id: &IrNodeId, generator: &mut FunctionGenerator) {
-        let block_node = &nodes[*block_id];
+        let mut node_stack = Vec::new();
+        let mut visited_nodes = HashSet::new();
 
-        if let IrNode::Label(instructions) = block_node {
-            for &inst_id in instructions {
-                let inst = &nodes[inst_id];
+        node_stack.push(*block_id);
+        while let Some(node_id) = node_stack.pop() {
+            if visited_nodes.contains(&node_id) {
+                continue;
+            }
 
-                if let IrNode::Variable { .. } = inst {
-                    generator.local_slots.insert(inst_id, generator.next_local_slot);
-                    generator.next_local_slot += 1;
-                }
+            visited_nodes.insert(node_id);
+
+            let node = &nodes[node_id];
+            match node {
+                IrNode::Label(instructions) => {
+                    for &inst_id in instructions {
+                        node_stack.push(inst_id);
+
+                        let inst = &nodes[inst_id];
+                        if let IrNode::Variable { .. } = inst {
+                            generator.local_slots.insert(inst_id, generator.next_local_slot);
+                            generator.next_local_slot += 1;
+                        }
+                    }
+                },
+                IrNode::Branch(next_block_id) => {
+                    node_stack.push(*next_block_id);
+                },
+                IrNode::ConditionalBranch {
+                    true_block,
+                    false_block,
+                    ..
+                } => {
+                    node_stack.push(*false_block);
+                    node_stack.push(*true_block);
+                },
+                IrNode::Return(..) => {
+                    return;
+                },
+                _ => {},
             }
         }
     }

@@ -231,16 +231,14 @@ impl<'a> IrModuleBuilder<'a> {
                 let node_id = *self.symbols.lookup(identifier)?;
 
                 match ty {
-                    BuiltinType::Function { .. } => {
-                        // Functions are direct references (no load needed)
-                        Some(node_id)
-                    },
+                    BuiltinType::Function { .. } => Some(node_id),
                     _ => {
                         // Variables/parameters must be loaded
+                        let lvalue_id = self.lower_lvalue(expr_id)?;
                         let ty_node_id = self.lower_type(ty);
                         self.emit_instr(IrNode::Load {
                             ty: ty_node_id,
-                            variable: node_id,
+                            variable: lvalue_id,
                         })
                     },
                 }
@@ -250,7 +248,7 @@ impl<'a> IrModuleBuilder<'a> {
                 lhs_expr,
                 rhs_expr,
             } => {
-                let lhs_instr_id = self.lower_expr(lhs_expr)?;
+                let lhs_instr_id = self.lower_lvalue(lhs_expr)?;
                 let rhs_instr_id = self.lower_expr(rhs_expr)?;
                 let assigner_id = if !matches!(kind, AssignmentKind::Assign) {
                     let (_, rhs_ty) = self.ast.get_expr_with_ty(rhs_expr)?;
@@ -290,6 +288,27 @@ impl<'a> IrModuleBuilder<'a> {
                     callee: callee_instr,
                     args,
                 })
+            },
+        }
+    }
+
+    fn lower_lvalue(&mut self, expr_id: &ExpressionId) -> Option<IrNodeId> {
+        let (expr, ty) = self.ast.get_expr_with_ty(expr_id)?;
+        match expr {
+            Expression::Identifier(identifier) => {
+                let node_id = *self.symbols.lookup(identifier)?;
+
+                match ty {
+                    BuiltinType::Function { .. } => None,
+                    _ => Some(node_id),
+                }
+            },
+
+            // TODO:
+            // Expression::StructFieldAccess { .. } => { ... }
+            // Expression::ArrayIndex { .. } => { ... }
+            _ => {
+                None // TODO: Should probably throw an error there
             },
         }
     }

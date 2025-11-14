@@ -11,9 +11,22 @@ use vm::VM;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input = r#"
 fn main() -> i32 {
-    var x = 4 % 3;
+    var x = 5;
+    x = x - 3;
+    var y = 0;
+    var w = 0;
 
-    return x;
+    if x < 3 {
+        y = x * 2;
+        w = y;
+    } else {
+        y = x - 3;
+    }
+
+    w = x - y;
+    var z = x + y;
+
+    return y;
 }
 "#;
 

@@ -2,6 +2,7 @@ use codegen::{Module, opcode::Op};
 
 #[derive(Debug, Clone)]
 pub enum Value {
+    Never,
     Null,
     Bool(bool),
     I8(i8),
@@ -121,7 +122,7 @@ impl VM {
             self.execute_op()?;
         }
 
-        Ok(self.stack.last().unwrap_or(&Value::Null).clone())
+        Ok(self.stack.last().unwrap_or(&Value::Never).clone())
     }
 
     fn execute_op(&mut self) -> Result<(), String> {
@@ -341,9 +342,21 @@ impl VM {
                 let a = self.pop()?.as_i32()?;
                 self.stack.push(Value::Bool(a > b));
             },
-            Op::GreaterThanEqualI32 => todo!(),
-            Op::LessThanI32 => todo!(),
-            Op::LessThanEqualI32 => todo!(),
+            Op::GreaterThanEqualI32 => {
+                let b = self.pop()?.as_i32()?;
+                let a = self.pop()?.as_i32()?;
+                self.stack.push(Value::Bool(a >= b));
+            },
+            Op::LessThanI32 => {
+                let b = self.pop()?.as_i32()?;
+                let a = self.pop()?.as_i32()?;
+                self.stack.push(Value::Bool(a < b));
+            },
+            Op::LessThanEqualI32 => {
+                let b = self.pop()?.as_i32()?;
+                let a = self.pop()?.as_i32()?;
+                self.stack.push(Value::Bool(a <= b));
+            },
             Op::EqualI64 => todo!(),
             Op::NotEqualI64 => todo!(),
             Op::GreaterThanI64 => todo!(),
