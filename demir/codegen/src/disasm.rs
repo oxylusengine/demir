@@ -52,9 +52,10 @@ pub fn print_code(code: &[u8]) -> Result<(), TryFromSliceError> {
             Op::Call => {
                 let bytes = &code[ip..ip + 2];
                 let func_id = u16::from_le_bytes(bytes.try_into()?);
-                let arg_count = code[ip + 2];
+                ip += 2;
+                let arg_count = code[ip];
+                ip += 1;
                 println!(" func_{} (args: {})", func_id, arg_count);
-                ip += 3;
             },
             Op::PushString => {
                 let bytes = &code[ip..ip + 2];

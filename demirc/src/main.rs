@@ -10,22 +10,23 @@ use vm::VM;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input = r#"
-fn fib(n: i32) -> i32 {
-    var a = 0;
-    var b = 1;
-    var i = 0;
-    while i < n {
-        var temp = a;
-        a = b;
-        b = temp + b;
-        i = i + 1;
-    }
+fn start() -> i32 {
+    return 0;
+}
 
-    return a;
+fn end() -> i32 {
+    return 10;
 }
 
 fn main() -> i32 {
-    return fib(1024);
+    var a = start();
+    var b = end();
+    var r = 0;
+    for i in a..b {
+        r = r + 1;
+    }
+
+    return r;
 }
 "#;
 
@@ -59,7 +60,7 @@ fn main() -> i32 {
 
     println!("=== VM ===");
     let mut vm = VM::new(module);
-    let value = match vm.execute_function(1) {
+    let value = match vm.execute_function(2) {
         Ok(value) => value,
         Err(e) => panic!("{}", e),
     };

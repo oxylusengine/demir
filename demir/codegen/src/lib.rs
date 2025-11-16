@@ -315,15 +315,14 @@ impl CodeGenerator {
             },
             IrNode::LogicalNot(_) => todo!(),
             IrNode::Label(instructions) => {
-                let func_relative_addr = self.code.len() as u32 - generator.address;
-                self.label_offsets.insert(*node_id, func_relative_addr);
+                self.label_offsets.insert(*node_id, self.code.len() as u32);
                 instructions
                     .iter()
                     .rev()
                     .for_each(|instr| generator.node_stack.push(*instr));
             },
             IrNode::Branch(dst_block_id) => {
-                self.mark_jump(Op::Jump, *dst_block_id, generator);
+                self.mark_jump(Op::Jump, *dst_block_id);
                 generator.node_stack.push(*dst_block_id);
             },
             IrNode::ConditionalBranch {
@@ -332,7 +331,7 @@ impl CodeGenerator {
                 false_block,
             } => {
                 self.generate_instr(nodes, condition, generator);
-                self.mark_jump(Op::JumpNotEqual, *false_block, generator);
+                self.mark_jump(Op::JumpNotEqual, *false_block);
                 generator.node_stack.push(*false_block);
                 generator.node_stack.push(*true_block);
             },
@@ -534,11 +533,12 @@ impl CodeGenerator {
         self.code.push(arg_count);
     }
 
-    fn mark_jump(&mut self, jump_kind: Op, dst_block_id: IrNodeId, generator: &mut FunctionGenerator) {
+    fn mark_jump(&mut self, jump_kind: Op, dst_block_id: IrNodeId) {
         self.emit(jump_kind);
 
+        let jump_offset = self.code.len() as u32;
         self.marked_jumps.push(MarkedJump {
-            offset: self.code.len() as u32 - generator.address,
+            offset: jump_offset,
             dst_block_id,
         });
 

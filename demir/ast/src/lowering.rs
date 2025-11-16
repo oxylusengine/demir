@@ -268,7 +268,7 @@ impl<'a> IrModuleBuilder<'a> {
             Statement::For { iter, range, body } => {
                 // Lower loop range
                 let (range_expr, range_ty) = self.ast.get_expr_with_ty(range).unwrap();
-                let (iter_start, iter_end) = match range_expr {
+                let (iter_start_expr, iter_end_expr) = match range_expr {
                     // Exclusive ranges
                     // ```
                     // for i in 0..15
@@ -277,7 +277,7 @@ impl<'a> IrModuleBuilder<'a> {
                         kind: _,
                         lhs_expr,
                         rhs_expr,
-                    } => (self.lower_expr(lhs_expr).unwrap(), self.lower_expr(rhs_expr).unwrap()),
+                    } => (lhs_expr, rhs_expr),
 
                     // TODO: Somehow figure out how to implement implicit ranges.
                     // ```
@@ -285,14 +285,15 @@ impl<'a> IrModuleBuilder<'a> {
                     // for v in x
                     // ```
                     _ => {
-                        return;
+                        todo!("Non-range expressions are not supported yet.")
                     },
                 };
                 // Initialize iterator with start of the range
                 let iter_ty_id = self.lower_type(range_ty);
+                let iter_start_id = self.lower_expr(iter_start_expr).unwrap();
                 let iter_var_id = self.emit_instr(IrNode::Variable { ty: iter_ty_id }).unwrap();
                 self.emit_instr(IrNode::Store {
-                    src: iter_start,
+                    src: iter_start_id,
                     dst: iter_var_id,
                 });
 
@@ -314,11 +315,12 @@ impl<'a> IrModuleBuilder<'a> {
                         variable: iter_var_id,
                     })
                     .unwrap();
+                let iter_end_id = self.lower_expr(iter_end_expr).unwrap();
                 let condition = self
                     .emit_instr(IrNode::LessThan {
                         ty: iter_ty_id,
                         lhs: lhs_instr_id,
-                        rhs: iter_end,
+                        rhs: iter_end_id,
                     })
                     .unwrap();
 
