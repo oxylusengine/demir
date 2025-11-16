@@ -10,19 +10,22 @@ use vm::VM;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input = r#"
-fn main() -> i32 {
+fn fib(n: i32) -> i32 {
+    var a = 0;
+    var b = 1;
     var i = 0;
-    while true {
-        i = i + 1;
-
-        if i > 4 {
-            break;
-        }
-
+    while i < n {
+        var temp = a;
+        a = b;
+        b = temp + b;
         i = i + 1;
     }
 
-    return i;
+    return a;
+}
+
+fn main() -> i32 {
+    return fib(1024);
 }
 "#;
 
@@ -56,7 +59,7 @@ fn main() -> i32 {
 
     println!("=== VM ===");
     let mut vm = VM::new(module);
-    let value = match vm.execute_function(0) {
+    let value = match vm.execute_function(1) {
         Ok(value) => value,
         Err(e) => panic!("{}", e),
     };
@@ -86,7 +89,6 @@ fn print_ir(nodes: &[IrNode], first_node_id: &IrNodeId) {
                 println!("  Functions: {:?}", functions);
                 println!("  Globals: {:?}", globals);
             },
-
             IrNode::Constant(c) => {
                 print!("%{} = Constant ", node_id);
                 match c {
@@ -99,7 +101,6 @@ fn print_ir(nodes: &[IrNode], first_node_id: &IrNodeId) {
                     IrConstant::String(s) => println!("str {}", s),
                 }
             },
-
             IrNode::Type(ty) => {
                 print!("%{} = Type ", node_id);
                 match ty {
@@ -126,151 +127,117 @@ fn print_ir(nodes: &[IrNode], first_node_id: &IrNodeId) {
                     },
                 }
             },
-
             IrNode::Variable { ty } => {
                 println!("%{} = Variable %{}", node_id, ty);
             },
-
             IrNode::Load { ty, variable } => {
                 println!("%{} = Load %{} %{}", node_id, ty, variable);
             },
-
             IrNode::Store { src, dst } => {
                 println!("%{} = Store %{} %{}", node_id, src, dst);
             },
-
             IrNode::Add { ty, lhs, rhs } => {
                 println!("%{} = IAdd %{} %{} %{}", node_id, ty, lhs, rhs);
             },
-
             IrNode::Sub { ty, lhs, rhs } => {
                 println!("%{} = ISub %{} %{} %{}", node_id, ty, lhs, rhs);
             },
-
             IrNode::Mul { ty, lhs, rhs } => {
                 println!("%{} = IMul %{} %{} %{}", node_id, ty, lhs, rhs);
             },
-
             IrNode::Div { ty, lhs, rhs } => {
                 println!("%{} = SDiv %{} %{} %{}", node_id, ty, lhs, rhs);
             },
-
             IrNode::Mod { ty, lhs, rhs } => {
                 println!("%{} = SMod %{} %{} %{}", node_id, ty, lhs, rhs);
             },
-
             IrNode::BitAnd { ty, lhs, rhs } => {
                 println!("%{} = BitwiseAnd %{} %{} %{}", node_id, ty, lhs, rhs);
             },
-
             IrNode::BitOr { ty, lhs, rhs } => {
                 println!("%{} = BitwiseOr %{} %{} %{}", node_id, ty, lhs, rhs);
             },
-
             IrNode::BitXor { ty, lhs, rhs } => {
                 println!("%{} = BitwiseXor %{} %{} %{}", node_id, ty, lhs, rhs);
             },
-
             IrNode::BitNot(a) => {
                 println!("%{} = Not %{}", node_id, a);
             },
-
             IrNode::ShiftLeft { ty, lhs, rhs } => {
                 println!("%{} = ShiftLeftLogical %{} %{} %{}", node_id, ty, lhs, rhs);
             },
-
             IrNode::ShiftRight { ty, lhs, rhs } => {
                 println!("%{} = ShiftRightArithmetic %{} %{} %{}", node_id, ty, lhs, rhs);
             },
-
             IrNode::Equal { ty, lhs, rhs } => {
                 println!("%{} = IEqual %{} %{} %{}", node_id, ty, lhs, rhs);
             },
-
             IrNode::NotEqual { ty, lhs, rhs } => {
                 println!("%{} = INotEqual %{} %{} %{}", node_id, ty, lhs, rhs);
             },
-
             IrNode::GreaterThan { ty, lhs, rhs } => {
                 println!("%{} = SGreaterThan %{} %{} %{}", node_id, ty, lhs, rhs);
             },
-
             IrNode::GreaterThanOrEqual { ty, lhs, rhs } => {
                 println!("%{} = SGreaterThanEqual %{} %{} %{}", node_id, ty, lhs, rhs);
             },
-
             IrNode::LessThan { ty, lhs, rhs } => {
                 println!("%{} = SLessThan %{} %{} %{}", node_id, ty, lhs, rhs);
             },
-
             IrNode::LessThanOrEqual { ty, lhs, rhs } => {
                 println!("%{} = SLessThanEqual %{} %{} %{}", node_id, ty, lhs, rhs);
             },
-
             IrNode::LogicalAnd { ty, lhs, rhs } => {
                 println!("%{} = LogicalAnd %{} %{} %{}", node_id, ty, lhs, rhs);
             },
-
             IrNode::LogicalOr { ty, lhs, rhs } => {
                 println!("%{} = LogicalOr %{} %{} %{}", node_id, ty, lhs, rhs);
             },
-
             IrNode::LogicalNot(a) => {
-                println!("%{} = LogicalNot %{}", node_id, a);
+                println!("%{node_id} = LogicalNot %{a}");
             },
-
             IrNode::Label(instructions) => {
                 println!("; Block marker");
-                println!("%{} = Label", node_id);
+                println!("%{node_id} = Label");
                 instructions.iter().rev().for_each(|instr| node_stack.push(*instr));
             },
-
             IrNode::Return(val) => {
                 if let Some(v) = val {
-                    println!("%{} = ReturnValue %{}", node_id, v);
+                    println!("%{node_id} = ReturnValue %{v}");
                 } else {
-                    println!("%{} = Return", node_id);
+                    println!("%{node_id} = Return");
                 }
                 println!("; Ongoing block terminated");
             },
-
             IrNode::Branch(target) => {
-                println!("%{node_id} = Branch %{}", target);
+                println!("%{node_id} = Branch %{target}");
                 println!("; Ongoing block terminated");
                 node_stack.push(*target);
             },
-
             IrNode::ConditionalBranch {
                 condition,
                 true_block,
                 false_block,
             } => {
-                println!(
-                    "%{node_id} = BranchConditional %{} %{} %{}",
-                    condition, true_block, false_block
-                );
+                println!("%{node_id} = BranchConditional %{condition} %{true_block} %{false_block}");
                 println!("; Ongoing block terminated");
                 node_stack.push(*false_block);
                 node_stack.push(*true_block);
             },
-
             IrNode::ExternalFunction { ty } => {
                 println!("%{} = ExternalFunction %{}", node_id, ty);
             },
-
             IrNode::Function { ty, starter_block } => {
                 println!("%{} = Function %{}", node_id, ty);
                 node_stack.push(*starter_block);
             },
-
             IrNode::FunctionParam { ty } => {
-                println!("%{} = FunctionParameter %{}", node_id, ty);
+                println!("%{node_id} = FunctionParameter %{ty}");
             },
-
             IrNode::Call { callee, args } => {
-                print!("%{} = FunctionCall %{}", node_id, callee);
+                print!("%{node_id} = FunctionCall %{callee}");
                 for arg in args {
-                    print!(" %{}", arg);
+                    print!(" %{arg}");
                 }
                 println!();
             },

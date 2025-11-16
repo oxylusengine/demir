@@ -118,6 +118,7 @@ impl<'a> SemanticAnalyzer<'a> {
             Expression::Assign { .. } => panic!(), // What?
             Expression::Binary { .. } => Err(SemaError::cannot_assign("a binary op")),
             Expression::CallFunction { .. } => Err(SemaError::cannot_assign("a function call")),
+            Expression::Range { .. } => Err(SemaError::cannot_assign("a range")),
         }
     }
 
@@ -197,6 +198,16 @@ impl<'a> SemanticAnalyzer<'a> {
                         }
                     },
                 };
+
+                Ok((lhs_symbol, lhs_ty))
+            },
+
+            Expression::Range { lhs_expr, rhs_expr, .. } => {
+                let (lhs_symbol, lhs_ty) = self.check_expr(lhs_expr)?;
+                let (_, rhs_ty) = self.check_expr(rhs_expr)?;
+                if lhs_ty != rhs_ty {
+                    return Err(SemaError::type_mismatch(lhs_ty, rhs_ty));
+                }
 
                 Ok((lhs_symbol, lhs_ty))
             },
@@ -386,6 +397,17 @@ impl<'a> SemanticAnalyzer<'a> {
             Statement::While { condition, true_case } => {
                 self.check_expr(condition)?;
                 self.check_stmt(true_case)?;
+
+                Ok(())
+            },
+
+            Statement::For { iter, range, body } => {
+                if self.symbols.lookup(iter).is_some() {
+                    return Err(SemaError::redefinition(iter));
+                }
+
+                self.check_expr(range)?;
+                self.check_stmt(body)?;
 
                 Ok(())
             },

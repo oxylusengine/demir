@@ -3,7 +3,18 @@ use std::collections::HashMap;
 
 use ir::{IrConstant, IrNode, IrNodeId};
 
-use crate::{AST, AssignmentKind, BinaryOp, Expression, ExpressionId, FunctionParam, Identifier, Literal, Statement};
+use crate::{
+    AST,
+    AssignmentKind,
+    BinaryOp,
+    Expression,
+    ExpressionId,
+    FunctionParam,
+    Identifier,
+    Literal,
+    RangeKind,
+    Statement,
+};
 
 struct IrModuleBuilder<'a> {
     ast: &'a AST,
@@ -227,28 +238,134 @@ impl<'a> IrModuleBuilder<'a> {
                 let cond_block = self.make_block();
                 let true_block = self.make_block();
                 let exiting_block = self.make_block();
-                self.loop_stack.push((cond_block, exiting_block));
 
+                // Terminate ongoing block to condition check:
+                // ```
+                // while x < 10
+                // ```
                 self.terminate_current_block(IrNode::Branch(cond_block));
                 self.set_current_block(cond_block);
                 let cond_node_id = self.lower_expr(condition).unwrap();
-
                 self.terminate_current_block(IrNode::ConditionalBranch {
                     condition: cond_node_id,
                     true_block,
                     false_block: exiting_block,
                 });
 
+                // Lower the actual loop body
+                self.loop_stack.push((cond_block, exiting_block));
                 self.set_current_block(true_block);
-
                 self.symbols.push_scope();
                 self.lower_stmt(true_case);
                 self.symbols.pop_scope();
+                self.loop_stack.pop();
 
+                // Exit out of the loop
+                self.terminate_current_block(IrNode::Branch(cond_block));
+                self.set_current_block(exiting_block);
+            },
+
+            Statement::For { iter, range, body } => {
+                // Lower loop range
+                let (range_expr, range_ty) = self.ast.get_expr_with_ty(range).unwrap();
+                let (iter_start, iter_end) = match range_expr {
+                    // Exclusive ranges
+                    // ```
+                    // for i in 0..15
+                    // ```
+                    Expression::Range {
+                        kind: _,
+                        lhs_expr,
+                        rhs_expr,
+                    } => (self.lower_expr(lhs_expr).unwrap(), self.lower_expr(rhs_expr).unwrap()),
+
+                    // TODO: Somehow figure out how to implement implicit ranges.
+                    // ```
+                    // let x = [1, 2, 3];
+                    // for v in x
+                    // ```
+                    _ => {
+                        return;
+                    },
+                };
+                // Initialize iterator with start of the range
+                let iter_ty_id = self.lower_type(range_ty);
+                let iter_var_id = self.emit_instr(IrNode::Variable { ty: iter_ty_id }).unwrap();
+                self.emit_instr(IrNode::Store {
+                    src: iter_start,
+                    dst: iter_var_id,
+                });
+
+                let cond_block = self.make_block();
+                let true_block = self.make_block();
+                let next_iter_block = self.make_block();
+                let exiting_block = self.make_block();
+
+                // Terminate ongoing block to condition check:
+                // ```
+                // // This is guaranteed and always the case
+                // iter < iter_end
+                // ```
+                self.terminate_current_block(IrNode::Branch(cond_block));
+                self.set_current_block(cond_block);
+                let lhs_instr_id = self
+                    .emit_instr(IrNode::Load {
+                        ty: iter_ty_id,
+                        variable: iter_var_id,
+                    })
+                    .unwrap();
+                let condition = self
+                    .emit_instr(IrNode::LessThan {
+                        ty: iter_ty_id,
+                        lhs: lhs_instr_id,
+                        rhs: iter_end,
+                    })
+                    .unwrap();
+
+                // Lower the actual loop body
+                self.terminate_current_block(IrNode::ConditionalBranch {
+                    condition,
+                    true_block,
+                    false_block: exiting_block,
+                });
+                self.set_current_block(true_block);
+                // Unlike while loop, `continue` statement doesn't go to condition
+                // because we have an iterator to increment
+                self.loop_stack.push((next_iter_block, exiting_block));
+                self.symbols.push_scope();
+                self.symbols.define(iter.clone(), iter_var_id);
+                self.lower_stmt(body);
+                self.symbols.pop_scope();
+                self.loop_stack.pop();
+
+                // Terminate to iterator incrementer
+                self.terminate_current_block(IrNode::Branch(next_iter_block));
+                self.set_current_block(next_iter_block);
+                // TODO: we should probably check if iteration is arithmatic
+                let lhs_instr_id = self
+                    .emit_instr(IrNode::Load {
+                        ty: iter_ty_id,
+                        variable: iter_var_id,
+                    })
+                    .unwrap();
+                let one_instr_id = self.lower_literal(&Literal::Integer(1));
+                let add_instr_id = self
+                    .emit_instr(IrNode::Add {
+                        ty: iter_ty_id,
+                        lhs: lhs_instr_id,
+                        rhs: one_instr_id,
+                    })
+                    .unwrap();
+                self.emit_instr(IrNode::Store {
+                    src: add_instr_id,
+                    dst: iter_var_id,
+                });
+
+                // Go back to loop condition
                 self.terminate_current_block(IrNode::Branch(cond_block));
 
+                // Exit out of the loop
                 self.set_current_block(exiting_block);
-                self.loop_stack.pop();
             },
 
             Statement::Continue => {
@@ -310,6 +427,7 @@ impl<'a> IrModuleBuilder<'a> {
                     dst: lhs_instr_id,
                 })
             },
+            Expression::Range { .. } => None, // This is special case
             Expression::Binary { op, lhs_expr, rhs_expr } => {
                 let lhs_instr_id = self.lower_expr(lhs_expr)?;
                 let rhs_instr_id = self.lower_expr(rhs_expr)?;
@@ -459,8 +577,6 @@ impl<'a> IrModuleBuilder<'a> {
                 lhs: *lhs,
                 rhs: *rhs,
             },
-            BinaryOp::RightExclusiveRange => todo!(),
-            BinaryOp::RightInclusiveRange => todo!(),
         };
 
         self.emit_instr(instr)

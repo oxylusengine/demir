@@ -1,6 +1,6 @@
 use core::types::Identifier;
 
-use ast::{AST, Attrib, Expression, ExpressionId, FunctionParam, Literal, Statement};
+use ast::{AST, Attrib, Expression, ExpressionId, FunctionParam, InfixOperator, Literal, Statement};
 use lexer::{
     lexer::Lexer,
     token::{Location, Token},
@@ -8,7 +8,7 @@ use lexer::{
 
 use crate::{
     error::ParseError,
-    precedence::{Precedence, token_to_assignment_kind, token_to_binary_op, token_to_precedence},
+    precedence::{Precedence, token_to_assignment_kind, token_to_binary_op, token_to_precedence, token_to_range_kind},
 };
 
 mod error;
@@ -102,6 +102,7 @@ impl<'a> Parser<'a> {
                 Token::Return => return self.parse_return_stmt(),
                 Token::If => return self.parse_if_stmt(),
                 Token::While => return self.parse_while_stmt(),
+                Token::For => return self.parse_for_stmt(),
                 Token::Continue => {
                     self.advance()?;
                     self.expect_next(Token::Semicolon)?;
@@ -215,7 +216,7 @@ impl<'a> Parser<'a> {
 
     fn parse_if_stmt(&mut self) -> ParseResult<Statement> {
         self.expect_next(Token::If)?;
-        let cond_expr = self.parse_expr(Precedence::default())?;
+        let condition = self.parse_expr(Precedence::default())?;
         let true_case = Box::new(self.parse_stmt()?);
 
         let false_case = if self.peek_is(Token::Else) {
@@ -230,7 +231,7 @@ impl<'a> Parser<'a> {
         };
 
         Ok(Statement::If {
-            condition: cond_expr,
+            condition,
             true_case,
             false_case,
         })
@@ -238,13 +239,20 @@ impl<'a> Parser<'a> {
 
     fn parse_while_stmt(&mut self) -> ParseResult<Statement> {
         self.expect_next(Token::While)?;
-        let cond_expr = self.parse_expr(Precedence::default())?;
+        let condition = self.parse_expr(Precedence::default())?;
         let true_case = Box::new(self.parse_stmt()?);
 
-        Ok(Statement::While {
-            condition: cond_expr,
-            true_case,
-        })
+        Ok(Statement::While { condition, true_case })
+    }
+
+    fn parse_for_stmt(&mut self) -> ParseResult<Statement> {
+        self.expect_next(Token::For)?;
+        let iter = self.parse_identifier()?;
+        self.expect_next(Token::In)?;
+        let range = self.parse_expr(Precedence::default())?;
+        let body = Box::new(self.parse_stmt()?);
+
+        Ok(Statement::For { iter, range, body })
     }
 
     fn parse_expr(&mut self, precedence: Precedence) -> ParseResult<ExpressionId> {
@@ -260,26 +268,45 @@ impl<'a> Parser<'a> {
         while !self.peek_is(Token::Eof) {
             let first_precedence = {
                 let (first_token, _) = self.peek().ok_or(ParseError::end_of_file())?;
-                token_to_precedence(&first_token)
+                token_to_precedence(first_token)
             };
             if first_precedence < precedence {
                 break;
             }
 
             let (first_token, first_location) = self.advance()?;
-            let assign_kind = token_to_assignment_kind(&first_token).ok_or(ParseError::unexpected(
-                "an assignment",
-                first_token,
-                first_location,
-            ));
-            let binary_op =
-                token_to_binary_op(&first_token).ok_or(ParseError::unexpected("a binary", first_token, first_location));
+            let operator_info = match first_precedence {
+                Precedence::Assignment => {
+                    let kind = token_to_assignment_kind(first_token).ok_or(ParseError::unexpected(
+                        "an assignment",
+                        first_token,
+                        first_location,
+                    ))?;
+                    InfixOperator::Assignment(kind)
+                },
+                Precedence::Range => {
+                    let kind = token_to_range_kind(first_token).ok_or(ParseError::unexpected(
+                        "a range",
+                        first_token,
+                        first_location,
+                    ))?;
+                    InfixOperator::Range(kind)
+                },
+                _ => {
+                    let op = token_to_binary_op(first_token).ok_or(ParseError::unexpected(
+                        "a binary",
+                        first_token,
+                        first_location,
+                    ))?;
+                    InfixOperator::Binary(op)
+                },
+            };
 
-            let mut rhs_expression = self.parse_postfix_expr()?;
+            let mut rhs_expr = self.parse_postfix_expr()?;
 
             while !self.peek_is(Token::Eof) {
                 let (next_token, _) = self.peek().ok_or(ParseError::end_of_file())?;
-                let next_precedence = token_to_precedence(&next_token);
+                let next_precedence = token_to_precedence(next_token);
                 let associate_right = next_precedence == Precedence::Assignment;
 
                 if associate_right {
@@ -290,21 +317,25 @@ impl<'a> Parser<'a> {
                     break;
                 }
 
-                rhs_expression = self.parse_expr_with_precedence(next_precedence, rhs_expression)?;
+                rhs_expr = self.parse_expr_with_precedence(next_precedence, rhs_expr)?;
             }
 
-            expression = if first_precedence == Precedence::Assignment {
-                self.make_expr(Expression::Assign {
-                    kind: assign_kind?,
+            expression = match operator_info {
+                InfixOperator::Assignment(kind) => self.make_expr(Expression::Assign {
+                    kind,
                     lhs_expr: expression,
-                    rhs_expr: rhs_expression,
-                })
-            } else {
-                self.make_expr(Expression::Binary {
-                    op: binary_op?,
+                    rhs_expr,
+                }),
+                InfixOperator::Range(kind) => self.make_expr(Expression::Range {
+                    kind,
                     lhs_expr: expression,
-                    rhs_expr: rhs_expression,
-                })
+                    rhs_expr,
+                }),
+                InfixOperator::Binary(op) => self.make_expr(Expression::Binary {
+                    op,
+                    lhs_expr: expression,
+                    rhs_expr,
+                }),
             };
         }
 

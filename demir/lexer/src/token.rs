@@ -18,6 +18,8 @@ pub enum Token<'a> {
     While,
     Continue,
     Break,
+    For,
+    In,
 
     /// Punctuators - Single character
     Equal, // =
@@ -94,6 +96,8 @@ impl<'a> Token<'a> {
             "while" => Token::While,
             "continue" => Token::Continue,
             "break" => Token::Break,
+            "for" => Token::For,
+            "in" => Token::In,
             _ => Token::Identifier(ident),
         }
     }
@@ -117,6 +121,8 @@ impl std::fmt::Display for Token<'_> {
             Token::While => write!(f, "while"),
             Token::Continue => write!(f, "continue"),
             Token::Break => write!(f, "break"),
+            Token::For => write!(f, "for"),
+            Token::In => write!(f, "in"),
 
             // Single character punctuators
             Token::Equal => write!(f, "="),

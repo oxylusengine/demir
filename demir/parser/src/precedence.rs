@@ -1,4 +1,4 @@
-use ast::{AssignmentKind, BinaryOp};
+use ast::{AssignmentKind, BinaryOp, RangeKind};
 use lexer::token::Token;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -19,7 +19,7 @@ pub enum Precedence {
     Multiplicative,
 }
 
-pub fn token_to_precedence(token: &Token<'_>) -> Precedence {
+pub fn token_to_precedence(token: Token<'_>) -> Precedence {
     match token {
         Token::Comma => Precedence::Comma,
         Token::Equal | Token::AddEqual | Token::SubEqual | Token::MulEqual | Token::DivEqual => Precedence::Assignment,
@@ -38,7 +38,7 @@ pub fn token_to_precedence(token: &Token<'_>) -> Precedence {
     }
 }
 
-pub fn token_to_binary_op(token: &Token<'_>) -> Option<BinaryOp> {
+pub fn token_to_binary_op(token: Token<'_>) -> Option<BinaryOp> {
     match token {
         Token::Equal => Some(BinaryOp::CompEq),
         Token::Add => Some(BinaryOp::Add),
@@ -59,19 +59,24 @@ pub fn token_to_binary_op(token: &Token<'_>) -> Option<BinaryOp> {
         Token::LessEqual => Some(BinaryOp::CompLessEq),
         Token::ShiftLeft => Some(BinaryOp::ShiftLeft),
         Token::ShiftRight => Some(BinaryOp::ShiftRight),
-        Token::Range => Some(BinaryOp::RightExclusiveRange),
-        Token::RangeEqual => Some(BinaryOp::RightInclusiveRange),
         _ => None,
     }
 }
 
-pub fn token_to_assignment_kind(token: &Token<'_>) -> Option<AssignmentKind> {
+pub fn token_to_assignment_kind(token: Token<'_>) -> Option<AssignmentKind> {
     match token {
         Token::Equal => Some(AssignmentKind::Assign),
         Token::AddEqual => Some(AssignmentKind::CompoundAdd),
         Token::SubEqual => Some(AssignmentKind::CompoundSub),
         Token::MulEqual => Some(AssignmentKind::CompoundMul),
         Token::DivEqual => Some(AssignmentKind::CompoundDiv),
+        _ => None,
+    }
+}
+
+pub fn token_to_range_kind(token: Token<'_>) -> Option<RangeKind> {
+    match token {
+        Token::Range => Some(RangeKind::Range),
         _ => None,
     }
 }

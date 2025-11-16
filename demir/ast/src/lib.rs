@@ -62,6 +62,12 @@ pub enum Statement {
         true_case: Box<Statement>,
     },
 
+    For {
+        iter: Identifier,
+        range: ExpressionId,
+        body: Box<Statement>,
+    },
+
     Continue,
     Break,
 
@@ -79,6 +85,11 @@ pub enum Expression {
     },
     Binary {
         op: BinaryOp,
+        lhs_expr: ExpressionId,
+        rhs_expr: ExpressionId,
+    },
+    Range {
+        kind: RangeKind,
         lhs_expr: ExpressionId,
         rhs_expr: ExpressionId,
     },
@@ -139,10 +150,20 @@ pub enum BinaryOp {
     /// Bitwise shift
     ShiftLeft, //
     ShiftRight, // >>
+}
 
-    /// Range
-    RightExclusiveRange, // ..
-    RightInclusiveRange, // ..=
+#[derive(Clone, Debug)]
+pub enum RangeKind {
+    Range,
+    // For some reason rust doesn't allow us to use this
+    // RangeInclusive,
+}
+
+#[derive(Debug, Clone)]
+pub enum InfixOperator {
+    Assignment(AssignmentKind),
+    Binary(BinaryOp),
+    Range(RangeKind),
 }
 
 #[derive(Debug, Clone)]
