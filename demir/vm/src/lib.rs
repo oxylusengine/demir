@@ -11,6 +11,7 @@ pub enum Value {
     I64(i64),
     F32(f32),
     F64(f64),
+    String(u16),
 }
 
 impl Value {
@@ -155,6 +156,10 @@ impl VM {
             Op::PushF32 => {
                 let val = self.read_f32()?;
                 self.push(Value::F32(val));
+            },
+            Op::PushString => {
+                let str_id = self.read_i16()?;
+                self.push(Value::String(str_id as u16));
             },
             Op::AddI32 => {
                 let b = self.pop()?.as_i32()?;
@@ -326,7 +331,6 @@ impl VM {
                     self.ip = frame.return_address;
                 }
             },
-            Op::PushString => todo!(),
             Op::EqualI32 => {
                 let b = self.pop()?.as_i32()?;
                 let a = self.pop()?.as_i32()?;

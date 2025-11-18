@@ -44,7 +44,6 @@ struct MarkedJump {
 }
 
 struct FunctionGenerator {
-    address: u32,
     param_count: u8,
     local_slots: HashMap<IrNodeId, u16>,
     next_local_slot: u16,
@@ -103,7 +102,7 @@ impl CodeGenerator {
                     code: self.code.clone(),
                 }
             },
-            _ => panic!(),
+            _ => panic!("the generate function can only be called for IrModules"),
         }
     }
 
@@ -114,7 +113,6 @@ impl CodeGenerator {
         match func_node {
             IrNode::Function { starter_block, .. } => {
                 let mut generator = FunctionGenerator {
-                    address,
                     param_count: 0,
                     local_slots: HashMap::new(),
                     next_local_slot: 0,
@@ -148,24 +146,12 @@ impl CodeGenerator {
                     local_count: generator.next_local_slot,
                 });
             },
-            IrNode::ExternalFunction { .. } => {
-                let mut param_count = 0;
-                let mut current_id = func_id + 1;
-                while current_id < nodes.len() {
-                    match &nodes[current_id] {
-                        IrNode::FunctionParam { .. } => {
-                            param_count += 1;
-                            current_id += 1;
-                        },
-                        _ => break,
-                    }
-                }
-
+            IrNode::ExternalFunction { params, .. } => {
                 self.functions.push(CompiledFunction {
                     id: *self.func_slots.get(func_id).unwrap_or(&u16::MAX),
                     address,
-                    param_count,
-                    local_count: 0,
+                    param_count: params.len() as u8,
+                    local_count: params.len() as u16,
                 });
             },
             _ => panic!(),
@@ -173,18 +159,15 @@ impl CodeGenerator {
     }
 
     fn reserve_parameter_locals(&self, nodes: &[IrNode], func_id: &IrNodeId, generator: &mut FunctionGenerator) {
-        let mut current_id = func_id + 1;
-
-        while current_id < nodes.len() {
-            match &nodes[current_id] {
-                IrNode::FunctionParam { .. } => {
-                    generator.local_slots.insert(current_id, generator.next_local_slot);
+        match &nodes[*func_id] {
+            IrNode::Function { params, .. } | IrNode::ExternalFunction { params, .. } => {
+                params.iter().for_each(|param_node_id| {
+                    generator.local_slots.insert(*param_node_id, generator.next_local_slot);
                     generator.next_local_slot += 1;
                     generator.param_count += 1;
-                    current_id += 1;
-                },
-                _ => break,
-            }
+                });
+            },
+            _ => {},
         }
     }
 

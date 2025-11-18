@@ -10,23 +10,11 @@ use vm::VM;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input = r#"
-fn start() -> i32 {
-    return 0;
-}
+@external
+fn println(v: str);
 
-fn end() -> i32 {
-    return 10;
-}
-
-fn main() -> i32 {
-    var a = start();
-    var b = end();
-    var r = 0;
-    for i in a..b {
-        r = r + 1;
-    }
-
-    return r;
+fn main() {
+    println("a");
 }
 "#;
 
@@ -60,7 +48,7 @@ fn main() -> i32 {
 
     println!("=== VM ===");
     let mut vm = VM::new(module);
-    let value = match vm.execute_function(2) {
+    let value = match vm.execute_function(1) {
         Ok(value) => value,
         Err(e) => panic!("{}", e),
     };
@@ -96,10 +84,10 @@ fn print_ir(nodes: &[IrNode], first_node_id: &IrNodeId) {
                     IrConstant::Null => println!("null"),
                     IrConstant::True => println!("true"),
                     IrConstant::False => println!("false"),
-                    IrConstant::I32(s) => println!("i32 {}", s),
-                    IrConstant::U32(s) => println!("u32 {}", s),
-                    IrConstant::F32(s) => println!("f32 {}", s),
-                    IrConstant::String(s) => println!("str {}", s),
+                    IrConstant::I32(s) => println!("i32 {s}"),
+                    IrConstant::U32(s) => println!("u32 {s}"),
+                    IrConstant::F32(s) => println!("f32 {s}"),
+                    IrConstant::String(s) => println!("str \"{s}\""),
                 }
             },
             IrNode::Type(ty) => {
@@ -225,11 +213,17 @@ fn print_ir(nodes: &[IrNode], first_node_id: &IrNodeId) {
                 node_stack.push(*false_block);
                 node_stack.push(*true_block);
             },
-            IrNode::ExternalFunction { ty } => {
+            IrNode::ExternalFunction { ty, params } => {
                 println!("%{} = ExternalFunction %{}", node_id, ty);
+                node_stack.extend_from_slice(params);
             },
-            IrNode::Function { ty, starter_block } => {
+            IrNode::Function {
+                ty,
+                params,
+                starter_block,
+            } => {
                 println!("%{} = Function %{}", node_id, ty);
+                node_stack.extend_from_slice(params);
                 node_stack.push(*starter_block);
             },
             IrNode::FunctionParam { ty } => {

@@ -143,9 +143,11 @@ pub enum IrNode {
     // Function operations
     ExternalFunction {
         ty: IrNodeId,
+        params: Vec<IrNodeId>,
     },
     Function {
         ty: IrNodeId,
+        params: Vec<IrNodeId>,
         starter_block: IrNodeId,
     },
     FunctionParam {

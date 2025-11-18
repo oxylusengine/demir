@@ -3,18 +3,7 @@ use std::collections::HashMap;
 
 use ir::{IrConstant, IrNode, IrNodeId};
 
-use crate::{
-    AST,
-    AssignmentKind,
-    BinaryOp,
-    Expression,
-    ExpressionId,
-    FunctionParam,
-    Identifier,
-    Literal,
-    RangeKind,
-    Statement,
-};
+use crate::{AST, AssignmentKind, BinaryOp, Expression, ExpressionId, FunctionParam, Identifier, Literal, Statement};
 
 struct IrModuleBuilder<'a> {
     ast: &'a AST,
@@ -117,10 +106,14 @@ impl<'a> IrModuleBuilder<'a> {
                 let func_node_id = if !external {
                     self.make_node(IrNode::Function {
                         ty: return_ty_id,
+                        params: Vec::default(),
                         starter_block: IrNodeId::MAX,
                     })
                 } else {
-                    self.make_node(IrNode::ExternalFunction { ty: return_ty_id })
+                    self.make_node(IrNode::ExternalFunction {
+                        ty: return_ty_id,
+                        params: Vec::default(),
+                    })
                 };
 
                 self.current_function = Some(func_node_id);
@@ -128,28 +121,39 @@ impl<'a> IrModuleBuilder<'a> {
                 self.symbols.define(identifier.clone(), func_node_id);
                 self.symbols.push_scope();
 
-                params
+                let param_node_ids = params
                     .iter()
-                    .for_each(|FunctionParam(param_identifier, param_type_expr)| {
+                    .map(|FunctionParam(param_identifier, param_type_expr)| {
                         let (_, param_ty) = self.ast.get_expr_with_ty(param_type_expr).unwrap();
                         let param_ty_id = self.lower_type(param_ty);
                         let param_id = self.make_node(IrNode::FunctionParam { ty: param_ty_id });
                         self.symbols.define(param_identifier.clone(), param_id);
-                    });
+
+                        param_id
+                    })
+                    .collect::<Vec<_>>();
 
                 if !external {
                     let starter_block_id = self.make_block();
-                    self.set_current_block(starter_block_id);
 
-                    if let Some(IrNode::Function { starter_block, .. }) = self.get_node_mut(func_node_id) {
+                    if let Some(IrNode::Function {
+                        params, starter_block, ..
+                    }) = self.get_node_mut(func_node_id)
+                    {
+                        *params = param_node_ids;
                         *starter_block = starter_block_id;
                     }
+
+                    self.set_current_block(starter_block_id);
 
                     if let Some(body) = body {
                         self.lower_stmt(body);
                     }
-                    // Implicit return - only if there is still an active block
+
+                    // Implicit return
                     self.terminate_current_block(IrNode::Return(None));
+                } else if let Some(IrNode::ExternalFunction { params, .. }) = self.get_node_mut(func_node_id) {
+                    *params = param_node_ids;
                 }
 
                 self.symbols.pop_scope();
