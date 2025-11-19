@@ -36,6 +36,7 @@ pub struct CompiledFunction {
     pub address: u32,
     pub param_count: u8,
     pub local_count: u16,
+    pub is_external: bool,
 }
 
 struct MarkedJump {
@@ -144,6 +145,7 @@ impl CodeGenerator {
                     address,
                     param_count: generator.param_count,
                     local_count: generator.next_local_slot,
+                    is_external: false,
                 });
             },
             IrNode::ExternalFunction { params, .. } => {
@@ -152,6 +154,7 @@ impl CodeGenerator {
                     address,
                     param_count: params.len() as u8,
                     local_count: params.len() as u16,
+                    is_external: true,
                 });
             },
             _ => panic!(),

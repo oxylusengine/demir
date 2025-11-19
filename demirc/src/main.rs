@@ -6,7 +6,7 @@ use codegen::{CodeGenerator, disasm};
 use ir::{IrConstant, IrNode, IrNodeId};
 use parser::{self};
 use sema::{self};
-use vm::VM;
+use vm::{VM, Value};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let input = r#"
@@ -14,7 +14,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn println(v: str);
 
 fn main() {
-    println("a");
+    for i in 0..10 {
+        println("Hello from external function!");
+    }
 }
 "#;
 
@@ -48,6 +50,15 @@ fn main() {
 
     println!("=== VM ===");
     let mut vm = VM::new(module);
+    vm.define_external(0, |stack| {
+        let value = stack.pop()?;
+        if let Value::String(str_id) = value {
+            println!("{}", stack.string(str_id).expect("Cannot find string id"));
+        }
+
+        Ok(())
+    });
+
     let value = match vm.execute_function(1) {
         Ok(value) => value,
         Err(e) => panic!("{}", e),
