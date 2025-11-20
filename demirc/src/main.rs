@@ -160,8 +160,8 @@ fn print_ir(nodes: &[IrNode], first_node_id: &IrNodeId) {
             IrNode::BitXor { ty, lhs, rhs } => {
                 println!("%{} = BitwiseXor %{} %{} %{}", node_id, ty, lhs, rhs);
             },
-            IrNode::BitNot(a) => {
-                println!("%{} = Not %{}", node_id, a);
+            IrNode::BitNot { ty, dst } => {
+                println!("%{node_id} = BitwiseNot %{ty} %{dst}");
             },
             IrNode::ShiftLeft { ty, lhs, rhs } => {
                 println!("%{} = ShiftLeftLogical %{} %{} %{}", node_id, ty, lhs, rhs);

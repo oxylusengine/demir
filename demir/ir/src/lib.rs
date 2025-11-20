@@ -73,7 +73,10 @@ pub enum IrNode {
         lhs: IrNodeId,
         rhs: IrNodeId,
     },
-    BitNot(IrNodeId),
+    BitNot {
+        ty: IrNodeId,
+        dst: IrNodeId,
+    },
     ShiftLeft {
         ty: IrNodeId,
         lhs: IrNodeId,

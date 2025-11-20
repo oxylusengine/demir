@@ -142,10 +142,7 @@ impl VM {
     }
 
     pub fn execute_function(&mut self, func_id: u16) -> Result<Value, String> {
-        let func = self
-            .functions
-            .get(func_id as usize)
-            .expect("Invalid function Id");
+        let func = self.functions.get(func_id as usize).expect("Invalid function Id");
 
         if !func.is_external {
             let mut frame = CallFrame::new(func.id, self.stack.len(), self.ip, func.local_count);
@@ -197,6 +194,14 @@ impl VM {
             Op::PushF32 => {
                 let val = self.read_f32()?;
                 self.stack.push(Value::F32(val));
+            },
+            Op::PushI64 => {
+                let val = self.read_i64()?;
+                self.stack.push(Value::I64(val));
+            },
+            Op::PushF64 => {
+                let val = self.read_f64()?;
+                self.stack.push(Value::F64(val));
             },
             Op::PushString => {
                 let str_id = self.read_i16()?;
@@ -456,6 +461,104 @@ impl VM {
                     self.ip = offset as usize;
                 }
             },
+            Op::BitAndI32 => {
+                let b = self.stack.pop()?.as_i32()?;
+                let a = self.stack.pop()?.as_i32()?;
+                self.stack.push(Value::I32(a & b));
+            },
+            Op::BitOrI32 => {
+                let b = self.stack.pop()?.as_i32()?;
+                let a = self.stack.pop()?.as_i32()?;
+                self.stack.push(Value::I32(a | b));
+            },
+            Op::BitXorI32 => {
+                let b = self.stack.pop()?.as_i32()?;
+                let a = self.stack.pop()?.as_i32()?;
+                self.stack.push(Value::I32(a ^ b));
+            },
+            Op::BitAndI64 => {
+                let b = self.stack.pop()?.as_i64()?;
+                let a = self.stack.pop()?.as_i64()?;
+                self.stack.push(Value::I64(a & b));
+            },
+            Op::BitOrI64 => {
+                let b = self.stack.pop()?.as_i64()?;
+                let a = self.stack.pop()?.as_i64()?;
+                self.stack.push(Value::I64(a | b));
+            },
+            Op::BitXorI64 => {
+                let b = self.stack.pop()?.as_i64()?;
+                let a = self.stack.pop()?.as_i64()?;
+                self.stack.push(Value::I64(a ^ b));
+            },
+            Op::BitNotI32 => {
+                let a = self.stack.pop()?.as_i32()?;
+                self.stack.push(Value::I32(!a));
+            },
+            Op::BitNotI64 => {
+                let a = self.stack.pop()?.as_i64()?;
+                self.stack.push(Value::I64(!a));
+            },
+            Op::ShiftLeftI32 => {
+                let b = self.stack.pop()?.as_i32()?;
+                let a = self.stack.pop()?.as_i32()?;
+                self.stack.push(Value::I32(a << b));
+            },
+            Op::ShiftRightI32 => {
+                let b = self.stack.pop()?.as_i32()?;
+                let a = self.stack.pop()?.as_i32()?;
+                self.stack.push(Value::I32(a >> b));
+            },
+            Op::ShiftLeftI64 => {
+                let b = self.stack.pop()?.as_i64()?;
+                let a = self.stack.pop()?.as_i64()?;
+                self.stack.push(Value::I64(a << b));
+            },
+            Op::ShiftRightI64 => {
+                let b = self.stack.pop()?.as_i64()?;
+                let a = self.stack.pop()?.as_i64()?;
+                self.stack.push(Value::I64(a >> b));
+            },
+            Op::LessThanU32 => {
+                let b = self.stack.pop()?.as_i32()? as u32;
+                let a = self.stack.pop()?.as_i32()? as u32;
+                self.stack.push(Value::Bool(a < b));
+            },
+            Op::LessThanEqualU32 => {
+                let b = self.stack.pop()?.as_i32()? as u32;
+                let a = self.stack.pop()?.as_i32()? as u32;
+                self.stack.push(Value::Bool(a <= b));
+            },
+            Op::GreaterThanU32 => {
+                let b = self.stack.pop()?.as_i32()? as u32;
+                let a = self.stack.pop()?.as_i32()? as u32;
+                self.stack.push(Value::Bool(a > b));
+            },
+            Op::GreaterThanEqualU32 => {
+                let b = self.stack.pop()?.as_i32()? as u32;
+                let a = self.stack.pop()?.as_i32()? as u32;
+                self.stack.push(Value::Bool(a >= b));
+            },
+            Op::LessThanU64 => {
+                let b = self.stack.pop()?.as_i64()? as u64;
+                let a = self.stack.pop()?.as_i64()? as u64;
+                self.stack.push(Value::Bool(a < b));
+            },
+            Op::LessThanEqualU64 => {
+                let b = self.stack.pop()?.as_i64()? as u64;
+                let a = self.stack.pop()?.as_i64()? as u64;
+                self.stack.push(Value::Bool(a <= b));
+            },
+            Op::GreaterThanU64 => {
+                let b = self.stack.pop()?.as_i64()? as u64;
+                let a = self.stack.pop()?.as_i64()? as u64;
+                self.stack.push(Value::Bool(a > b));
+            },
+            Op::GreaterThanEqualU64 => {
+                let b = self.stack.pop()?.as_i64()? as u64;
+                let a = self.stack.pop()?.as_i64()? as u64;
+                self.stack.push(Value::Bool(a >= b));
+            },
         }
 
         Ok(())
@@ -513,7 +616,13 @@ impl VM {
         Ok(f32::from_le_bytes(bytes.try_into().expect("Failed to read f32")))
     }
 
-    fn _read_f64(&mut self) -> Result<f64, String> {
+    fn read_i64(&mut self) -> Result<i64, String> {
+        let bytes = &self.code[self.ip..self.ip + 8];
+        self.ip += 8;
+        Ok(i64::from_le_bytes(bytes.try_into().expect("Failed to read i64")))
+    }
+
+    fn read_f64(&mut self) -> Result<f64, String> {
         let bytes = &self.code[self.ip..self.ip + 8];
         self.ip += 8;
         Ok(f64::from_le_bytes(bytes.try_into().expect("Failed to read f64")))

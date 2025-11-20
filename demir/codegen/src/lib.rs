@@ -269,12 +269,27 @@ impl CodeGenerator {
             IrNode::Mod { ty, lhs, rhs } => {
                 emit_binary!(self, emit_mod, ty, lhs, rhs, nodes, generator, node_id);
             },
-            IrNode::BitAnd { ty, lhs, rhs } => todo!(),
-            IrNode::BitOr { ty, lhs, rhs } => todo!(),
-            IrNode::BitXor { ty, lhs, rhs } => todo!(),
-            IrNode::BitNot(_) => todo!(),
-            IrNode::ShiftLeft { ty, lhs, rhs } => todo!(),
-            IrNode::ShiftRight { ty, lhs, rhs } => todo!(),
+            IrNode::BitAnd { ty, lhs, rhs } => {
+                emit_binary!(self, emit_bit_and, ty, lhs, rhs, nodes, generator, node_id);
+            },
+            IrNode::BitOr { ty, lhs, rhs } => {
+                emit_binary!(self, emit_bit_or, ty, lhs, rhs, nodes, generator, node_id);
+            },
+            IrNode::BitXor { ty, lhs, rhs } => {
+                emit_binary!(self, emit_bit_xor, ty, lhs, rhs, nodes, generator, node_id);
+            },
+            IrNode::BitNot { ty, dst } => {
+                self.generate_instr(nodes, dst, generator);
+                self.emit_bit_not(nodes, ty);
+                generator.mark_popped(dst);
+                generator.mark_popped(node_id);
+            },
+            IrNode::ShiftLeft { ty, lhs, rhs } => {
+                emit_binary!(self, emit_shift_left, ty, lhs, rhs, nodes, generator, node_id);
+            },
+            IrNode::ShiftRight { ty, lhs, rhs } => {
+                emit_binary!(self, emit_shift_right, ty, lhs, rhs, nodes, generator, node_id);
+            },
             IrNode::Equal { ty, lhs, rhs } => {
                 emit_binary!(self, emit_equal, ty, lhs, rhs, nodes, generator, node_id);
             },
@@ -398,6 +413,60 @@ impl CodeGenerator {
         match ty {
             IrNode::Type(BuiltinType::I32) => self.emit(Op::ModI32),
             IrNode::Type(BuiltinType::I64) => self.emit(Op::ModI64),
+            _ => panic!(),
+        }
+    }
+
+    fn emit_bit_and(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
+        let ty = &nodes[*ty_id];
+        match ty {
+            IrNode::Type(BuiltinType::I32) => self.emit(Op::BitAndI32),
+            IrNode::Type(BuiltinType::I64) => self.emit(Op::BitAndI64),
+            _ => panic!(),
+        }
+    }
+
+    fn emit_bit_or(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
+        let ty = &nodes[*ty_id];
+        match ty {
+            IrNode::Type(BuiltinType::I32) => self.emit(Op::BitOrI32),
+            IrNode::Type(BuiltinType::I64) => self.emit(Op::BitOrI64),
+            _ => panic!(),
+        }
+    }
+
+    fn emit_bit_xor(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
+        let ty = &nodes[*ty_id];
+        match ty {
+            IrNode::Type(BuiltinType::I32) => self.emit(Op::BitXorI32),
+            IrNode::Type(BuiltinType::I64) => self.emit(Op::BitXorI64),
+            _ => panic!(),
+        }
+    }
+
+    fn emit_bit_not(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
+        let ty = &nodes[*ty_id];
+        match ty {
+            IrNode::Type(BuiltinType::I32) => self.emit(Op::BitNotI32),
+            IrNode::Type(BuiltinType::I64) => self.emit(Op::BitNotI64),
+            _ => panic!(),
+        }
+    }
+
+    fn emit_shift_left(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
+        let ty = &nodes[*ty_id];
+        match ty {
+            IrNode::Type(BuiltinType::I32) => self.emit(Op::ShiftLeftI32),
+            IrNode::Type(BuiltinType::I64) => self.emit(Op::ShiftLeftI64),
+            _ => panic!(),
+        }
+    }
+
+    fn emit_shift_right(&mut self, nodes: &[IrNode], ty_id: &IrNodeId) {
+        let ty = &nodes[*ty_id];
+        match ty {
+            IrNode::Type(BuiltinType::I32) => self.emit(Op::ShiftRightI32),
+            IrNode::Type(BuiltinType::I64) => self.emit(Op::ShiftRightI64),
             _ => panic!(),
         }
     }

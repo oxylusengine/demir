@@ -31,11 +31,23 @@ pub fn print_code(code: &[u8]) -> Result<(), TryFromSliceError> {
                 println!(" {}", val);
                 ip += 4;
             },
+            Op::PushI64 => {
+                let bytes = &code[ip..ip + 8];
+                let val = i64::from_le_bytes(bytes.try_into()?);
+                println!(" {}", val);
+                ip += 8;
+            },
             Op::PushF32 => {
                 let bytes = &code[ip..ip + 4];
                 let val = f32::from_le_bytes(bytes.try_into()?);
                 println!(" {}", val);
                 ip += 4;
+            },
+            Op::PushF64 => {
+                let bytes = &code[ip..ip + 8];
+                let val = f64::from_le_bytes(bytes.try_into()?);
+                println!(" {}", val);
+                ip += 8;
             },
             Op::LoadLocal | Op::StoreLocal => {
                 let bytes = &code[ip..ip + 2];
