@@ -602,9 +602,10 @@ impl CodeGenerator {
 
     fn resolve_jumps(&mut self) {
         for jump in &self.marked_jumps {
-            let target_offset = *self.label_offsets.get(&jump.dst_block_id).unwrap();
-            let byte_offset = jump.offset as usize;
-            self.code[byte_offset..byte_offset + 4].copy_from_slice(&target_offset.to_le_bytes());
+            if let Some(target_offset) = self.label_offsets.get(&jump.dst_block_id) {
+                let byte_offset = jump.offset as usize;
+                self.code[byte_offset..byte_offset + 4].copy_from_slice(&target_offset.to_le_bytes());
+            }
         }
     }
 }

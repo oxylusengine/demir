@@ -66,6 +66,7 @@ struct CallFrame {
 enum State {
     Executing,
     Finished,
+    Halted(String),
 }
 
 pub struct VMStack {
@@ -358,10 +359,11 @@ impl VM {
             Op::Ret => {
                 if self.call_frames.len() <= 1 {
                     self.state = State::Finished;
+                } else if let Some(next_frame) = self.call_frames.pop() {
+                    self.stack.truncate(next_frame.base_stack);
+                    self.ip = next_frame.return_address;
                 } else {
-                    let frame = self.call_frames.pop().unwrap();
-                    self.stack.truncate(frame.base_stack);
-                    self.ip = frame.return_address;
+                    self.state = State::Halted("Unhandled return".to_string());
                 }
             },
             Op::RetValue => {
@@ -370,11 +372,12 @@ impl VM {
                 if self.call_frames.len() <= 1 {
                     self.stack.push(return_value);
                     self.state = State::Finished;
-                } else {
-                    let frame = self.call_frames.pop().unwrap();
-                    self.stack.truncate(frame.base_stack);
+                } else if let Some(next_frame) = self.call_frames.pop() {
+                    self.stack.truncate(next_frame.base_stack);
                     self.stack.push(return_value);
-                    self.ip = frame.return_address;
+                    self.ip = next_frame.return_address;
+                } else {
+                    self.state = State::Halted("Unhandled return".to_string());
                 }
             },
             Op::EqualI32 => {
