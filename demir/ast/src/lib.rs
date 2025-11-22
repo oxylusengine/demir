@@ -47,6 +47,7 @@ pub enum Statement {
         identifier: Identifier,
         type_expr: Option<ExpressionId>,
         initial_expr: Option<ExpressionId>,
+        is_mutable: bool,
     },
 
     Return(ExpressionId),

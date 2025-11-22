@@ -310,6 +310,7 @@ impl<'a> SemanticAnalyzer<'a> {
                 identifier,
                 type_expr,
                 initial_expr,
+                is_mutable,
             } => {
                 if self.symbols.lookup(identifier).is_some() {
                     return Err(SemaError::redefinition(identifier));
@@ -351,7 +352,7 @@ impl<'a> SemanticAnalyzer<'a> {
                     (
                         SymbolKind::Variable {
                             identifier: identifier.clone(),
-                            is_mutable: true,
+                            is_mutable: *is_mutable,
                         },
                         resolved_ty,
                     ),

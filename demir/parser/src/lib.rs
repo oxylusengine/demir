@@ -97,7 +97,7 @@ impl<'a> Parser<'a> {
                     continue;
                 },
                 Token::BraceLeft => return self.parse_multi_stmt(),
-                Token::Var => return self.parse_decl_var_stmt(),
+                Token::Let | Token::Var => return self.parse_decl_var_stmt(),
                 Token::Fn => return self.parse_decl_function_stmt(attributes),
                 Token::Return => return self.parse_return_stmt(),
                 Token::If => return self.parse_if_stmt(),
@@ -130,7 +130,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_decl_var_stmt(&mut self) -> ParseResult<Statement> {
-        self.expect_next(Token::Var)?;
+        let (token, location) = self.advance()?;
+        let is_mutable = match token {
+            Token::Var => true,
+            Token::Let => false,
+            _ => Err(ParseError::unexpected("let, var", token, location))?,
+        };
+
         let identifier = self.parse_identifier()?;
 
         let mut type_expr = Option::None;
@@ -151,6 +157,7 @@ impl<'a> Parser<'a> {
             identifier,
             type_expr,
             initial_expr,
+            is_mutable,
         })
     }
 

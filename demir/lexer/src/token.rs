@@ -8,6 +8,7 @@ pub enum Token<'a> {
 
     /// Keywords
     Null,
+    Let,
     Var,
     Fn,
     Return,
@@ -86,6 +87,7 @@ impl<'a> Token<'a> {
     pub fn from_identifier(ident: &'a str) -> Self {
         match ident {
             "null" => Token::Null,
+            "let" => Token::Let,
             "var" => Token::Var,
             "fn" => Token::Fn,
             "return" => Token::Return,
@@ -105,12 +107,13 @@ impl<'a> Token<'a> {
 
 impl std::fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
+        match &self {
             Token::Eof => write!(f, "eof"),
             Token::Identifier(s) => write!(f, "{s}"),
 
             // Keywords
             Token::Null => write!(f, "null"),
+            Token::Let => write!(f, "let"),
             Token::Var => write!(f, "var"),
             Token::Fn => write!(f, "fn"),
             Token::Return => write!(f, "return"),

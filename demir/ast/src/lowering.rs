@@ -163,6 +163,7 @@ impl<'a> IrModuleBuilder<'a> {
                 identifier,
                 type_expr,
                 initial_expr,
+                ..
             } => {
                 let mut initial_node_id = None;
                 let var_ty_id = if let Some(type_expr) = type_expr {
