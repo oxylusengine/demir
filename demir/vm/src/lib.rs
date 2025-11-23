@@ -116,9 +116,12 @@ impl CallFrame {
         }
     }
 
-    pub fn get_local(&self, index: u16) -> &Value { &self.locals[index as usize] }
+    pub fn get_local(&self, index: u16) -> Option<&Value> { self.locals.get(index as usize) }
 
-    pub fn set_local(&mut self, index: u16, value: Value) { self.locals[index as usize] = value; }
+    pub fn set_local(&mut self, index: u16, value: Value) -> Option<()> {
+        self.locals.get_mut(index as usize)?.clone_from(&value);
+        Some(())
+    }
 }
 
 impl VM {
@@ -143,7 +146,10 @@ impl VM {
     }
 
     pub fn execute_function(&mut self, func_id: u16) -> Result<Value, String> {
-        let func = self.functions.get(func_id as usize).expect("Invalid function Id");
+        let func = self
+            .functions
+            .get(func_id as usize)
+            .ok_or_else(|| format!("Invalid function Id {func_id}"))?;
 
         if !func.is_external {
             let mut frame = CallFrame::new(func.id, self.stack.len(), self.ip, func.local_count);
@@ -342,7 +348,9 @@ impl VM {
             },
             Op::LoadLocal => {
                 let slot = self.read_u16()?;
-                let value = self.get_local(slot);
+                let value = self
+                    .get_local(slot)
+                    .ok_or_else(|| format!("invalid local slot {slot}"))?;
                 self.stack.push(value.clone());
             },
             Op::StoreLocal => {
@@ -573,13 +581,15 @@ impl VM {
         Ok(())
     }
 
-    fn current_frame(&self) -> &CallFrame { self.call_frames.last().expect("No call frame") }
+    fn current_frame(&self) -> Option<&CallFrame> { self.call_frames.last() }
 
-    fn current_frame_mut(&mut self) -> &mut CallFrame { self.call_frames.last_mut().expect("No call frame") }
+    fn current_frame_mut(&mut self) -> Option<&mut CallFrame> { self.call_frames.last_mut() }
 
-    fn get_local(&self, local_id: u16) -> &Value { self.current_frame().get_local(local_id) }
+    fn get_local(&self, local_id: u16) -> Option<&Value> { self.current_frame()?.get_local(local_id) }
 
-    fn set_local(&mut self, local_id: u16, value: Value) { self.current_frame_mut().set_local(local_id, value) }
+    fn set_local(&mut self, local_id: u16, value: Value) -> Option<()> {
+        self.current_frame_mut()?.set_local(local_id, value)
+    }
 
     fn read_u8(&mut self) -> Result<u8, String> {
         let val = self.code[self.ip];
@@ -592,49 +602,65 @@ impl VM {
     fn read_u16(&mut self) -> Result<u16, String> {
         let bytes = &self.code[self.ip..self.ip + 2];
         self.ip += 2;
-        Ok(u16::from_le_bytes(bytes.try_into().expect("Failed to read u16")))
+        Ok(u16::from_le_bytes(
+            bytes.try_into().map_err(|_| "Failed to read u16".to_string())?,
+        ))
     }
 
     fn read_i16(&mut self) -> Result<i16, String> {
         let bytes = &self.code[self.ip..self.ip + 2];
         self.ip += 2;
-        Ok(i16::from_le_bytes(bytes.try_into().expect("Failed to read i16")))
+        Ok(i16::from_le_bytes(
+            bytes.try_into().map_err(|_| "Failed to read i16".to_string())?,
+        ))
     }
 
     fn read_i32(&mut self) -> Result<i32, String> {
         let bytes = &self.code[self.ip..self.ip + 4];
         self.ip += 4;
-        Ok(i32::from_le_bytes(bytes.try_into().expect("Failed to read i32")))
+        Ok(i32::from_le_bytes(
+            bytes.try_into().map_err(|_| "Failed to read i32".to_string())?,
+        ))
     }
 
     fn read_u32(&mut self) -> Result<u32, String> {
         let bytes = &self.code[self.ip..self.ip + 4];
         self.ip += 4;
-        Ok(u32::from_le_bytes(bytes.try_into().expect("Failed to read u32")))
+        Ok(u32::from_le_bytes(
+            bytes.try_into().map_err(|_| "Failed to read u32".to_string())?,
+        ))
     }
 
     fn _read_i64(&mut self) -> Result<i64, String> {
         let bytes = &self.code[self.ip..self.ip + 8];
         self.ip += 8;
-        Ok(i64::from_le_bytes(bytes.try_into().expect("Failed to read i64")))
+        Ok(i64::from_le_bytes(
+            bytes.try_into().map_err(|_| "Failed to read i64".to_string())?,
+        ))
     }
 
     fn read_f32(&mut self) -> Result<f32, String> {
         let bytes = &self.code[self.ip..self.ip + 4];
         self.ip += 4;
-        Ok(f32::from_le_bytes(bytes.try_into().expect("Failed to read f32")))
+        Ok(f32::from_le_bytes(
+            bytes.try_into().map_err(|_| "Failed to read f32".to_string())?,
+        ))
     }
 
     fn read_i64(&mut self) -> Result<i64, String> {
         let bytes = &self.code[self.ip..self.ip + 8];
         self.ip += 8;
-        Ok(i64::from_le_bytes(bytes.try_into().expect("Failed to read i64")))
+        Ok(i64::from_le_bytes(
+            bytes.try_into().map_err(|_| "Failed to read i64".to_string())?,
+        ))
     }
 
     fn read_f64(&mut self) -> Result<f64, String> {
         let bytes = &self.code[self.ip..self.ip + 8];
         self.ip += 8;
-        Ok(f64::from_le_bytes(bytes.try_into().expect("Failed to read f64")))
+        Ok(f64::from_le_bytes(
+            bytes.try_into().map_err(|_| "Failed to read f64".to_string())?,
+        ))
     }
 
     fn runtime_error(&mut self, err: impl std::fmt::Display) { self.errors.push(err.to_string()); }

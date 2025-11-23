@@ -18,27 +18,20 @@ where
     K: std::hash::Hash + Eq,
 {
     pub fn new() -> Self {
-        let mut scopes = Vec::new();
-        // global scope
-        let mut stack = Vec::new();
-        stack.push(Scope { map: HashMap::new() });
-        scopes.push(stack);
-
         Self {
-            scopes,
+            scopes: vec![vec![Scope { map: HashMap::new() }]],
             current_scope: 0,
         }
     }
 
     pub fn push_scope(&mut self) {
         let next_scope = self.current_scope + 1;
+        let new_scope = Scope { map: HashMap::new() };
 
         if next_scope >= self.scopes.len() {
-            let mut stack = Vec::new();
-            stack.push(Scope { map: HashMap::new() });
-            self.scopes.push(stack);
+            self.scopes.push(vec![new_scope]);
         } else {
-            self.scopes[next_scope].push(Scope { map: HashMap::new() });
+            self.scopes[next_scope].push(new_scope);
         }
 
         self.current_scope = next_scope;
@@ -60,20 +53,23 @@ where
     }
 
     pub fn lookup(&self, key: &K) -> Option<&V> {
-        let mut looking_scope = Some(self.current_scope);
+        let mut scope_idx = self.current_scope;
 
-        while let Some(scope_idx) = looking_scope {
-            if let Some(cur_stack) = self.scopes.get(scope_idx) {
-                if !cur_stack.is_empty() {
-                    if let Some(scope) = cur_stack.last() {
-                        if let Some(value) = scope.map.get(key) {
-                            return Some(value);
-                        }
+        loop {
+            match self
+                .scopes
+                .get(scope_idx)
+                .and_then(|cur_stack| cur_stack.last())
+                .and_then(|scope| scope.map.get(key))
+            {
+                Some(value) => return Some(value),
+                None => {
+                    if scope_idx == 0 {
+                        break;
                     }
-                }
+                    scope_idx = scope_idx.saturating_sub(1);
+                },
             }
-
-            looking_scope = scope_idx.checked_sub(1);
         }
 
         None
