@@ -1,5 +1,11 @@
 use core::types::BuiltinType;
 
+use ast::AST;
+
+use crate::ast_lowering::IrModuleBuilder;
+
+pub mod ast_lowering;
+
 #[derive(Debug, Clone)]
 pub enum IrNode {
     // Root module
@@ -177,4 +183,27 @@ pub enum IrConstant {
 
 impl IrConstant {
     pub fn from_bool(b: bool) -> Self { if b { IrConstant::True } else { IrConstant::False } }
+}
+
+pub fn lower_ast(ast: AST) -> IrNode {
+    let mut module_builder = IrModuleBuilder::new(&ast);
+    module_builder.define_builtin("i8", BuiltinType::I8);
+    module_builder.define_builtin("u8", BuiltinType::U8);
+    module_builder.define_builtin("i16", BuiltinType::I16);
+    module_builder.define_builtin("u16", BuiltinType::U16);
+    module_builder.define_builtin("i32", BuiltinType::I32);
+    module_builder.define_builtin("u32", BuiltinType::U32);
+    module_builder.define_builtin("i64", BuiltinType::I64);
+    module_builder.define_builtin("u64", BuiltinType::U64);
+    module_builder.define_builtin("f32", BuiltinType::F32);
+    module_builder.define_builtin("f64", BuiltinType::F64);
+    module_builder.define_builtin("bool", BuiltinType::Bool);
+    module_builder.define_builtin("str", BuiltinType::String);
+    module_builder.lower_stmt(&ast.root);
+
+    IrNode::Module {
+        nodes: module_builder.nodes,
+        functions: module_builder.functions,
+        globals: module_builder.globals,
+    }
 }

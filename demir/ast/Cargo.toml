@@ -8,5 +8,4 @@ path = "src/lib.rs"
 
 [dependencies]
 core = { path = "../core" }
-ir = { path = "../ir" }
-
+lexer = { path = "../lexer" }

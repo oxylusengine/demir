@@ -8,3 +8,4 @@ path = "src/lib.rs"
 
 [dependencies]
 core = { path = "../core" }
+ast = { path = "../ast" }

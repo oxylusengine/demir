@@ -1,10 +1,9 @@
 use core::types::BuiltinType;
 use std::collections::HashSet;
 
-use ast::lowering::{self};
+use ast::{self};
 use codegen::{CodeGenerator, disasm};
-use ir::{IrConstant, IrNode, IrNodeId};
-use parser::{self};
+use ir::{self, IrConstant, IrNode, IrNodeId};
 use sema::{self};
 use vm::{VM, Value};
 
@@ -20,11 +19,11 @@ fn main() {
 }
 "#;
 
-    let mut ast = parser::parse(input)?;
+    let mut ast = ast::parse(input)?;
     ast = sema::analyze(ast)?;
 
     println!("=== IR ===");
-    let ir_module = lowering::lower_ast(ast);
+    let ir_module = ir::lower_ast(ast);
     if let IrNode::Module {
         nodes,
         functions,

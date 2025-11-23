@@ -11,7 +11,6 @@ path = "src/main.rs"
 core = { path = "../demir/core" }
 ast = { path = "../demir/ast" }
 ir = { path = "../demir/ir" }
-parser = { path = "../demir/parser" }
 sema = { path = "../demir/sema" }
 codegen = { path = "../demir/codegen" }
 vm = { path = "../demir/vm" }

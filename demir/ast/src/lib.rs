@@ -1,6 +1,10 @@
-pub mod lowering;
-
 use core::types::{BuiltinType, Identifier};
+
+use crate::parser::{ParseResult, Parser};
+
+mod error;
+pub mod parser;
+mod precedence;
 
 pub struct AST {
     pub root: Statement,
@@ -169,3 +173,8 @@ pub enum InfixOperator {
 
 #[derive(Debug, Clone)]
 pub struct FunctionParam(pub Identifier, pub ExpressionId);
+
+pub fn parse(buffer_view: &str) -> ParseResult<AST> {
+    let mut parser = Parser::new(buffer_view);
+    parser.parse()
+}

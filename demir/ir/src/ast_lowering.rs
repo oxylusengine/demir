@@ -1,15 +1,18 @@
-use core::{symbol_table::SymbolTable, types::BuiltinType};
+use core::{
+    symbol_table::SymbolTable,
+    types::{BuiltinType, Identifier},
+};
 use std::collections::HashMap;
 
-use ir::{IrConstant, IrNode, IrNodeId};
+use ast::{AST, AssignmentKind, BinaryOp, Expression, ExpressionId, FunctionParam, Literal, Statement};
 
-use crate::{AST, AssignmentKind, BinaryOp, Expression, ExpressionId, FunctionParam, Identifier, Literal, Statement};
+use crate::{IrConstant, IrNode, IrNodeId};
 
-struct IrModuleBuilder<'a> {
+pub struct IrModuleBuilder<'a> {
     ast: &'a AST,
-    nodes: Vec<IrNode>,
-    functions: Vec<IrNodeId>,
-    globals: Vec<IrNodeId>,
+    pub nodes: Vec<IrNode>,
+    pub functions: Vec<IrNodeId>,
+    pub globals: Vec<IrNodeId>,
     types: HashMap<BuiltinType, IrNodeId>,
     current_block: Option<IrNodeId>,
     current_function: Option<IrNodeId>,
@@ -18,7 +21,7 @@ struct IrModuleBuilder<'a> {
 }
 
 impl<'a> IrModuleBuilder<'a> {
-    fn new(ast: &'a AST) -> Self {
+    pub fn new(ast: &'a AST) -> Self {
         Self {
             ast,
             nodes: Vec::new(),
@@ -41,7 +44,7 @@ impl<'a> IrModuleBuilder<'a> {
 
     fn get_node_mut(&mut self, node_id: IrNodeId) -> Option<&mut IrNode> { self.nodes.get_mut(node_id) }
 
-    fn define_builtin(&mut self, identifier: &str, ty: BuiltinType) {
+    pub fn define_builtin(&mut self, identifier: &str, ty: BuiltinType) {
         let ty_node_id = self.lower_type(&ty);
         self.symbols.define(Identifier(identifier.to_string()), ty_node_id);
     }
@@ -81,7 +84,7 @@ impl<'a> IrModuleBuilder<'a> {
         node_id
     }
 
-    fn lower_stmt(&mut self, stmt: &Statement) {
+    pub fn lower_stmt(&mut self, stmt: &Statement) {
         match stmt {
             Statement::Multi(statements) => {
                 for s in statements {
@@ -587,28 +590,5 @@ impl<'a> IrModuleBuilder<'a> {
         };
 
         self.emit_instr(instr)
-    }
-}
-
-pub fn lower_ast(ast: AST) -> IrNode {
-    let mut module_builder = IrModuleBuilder::new(&ast);
-    module_builder.define_builtin("i8", BuiltinType::I8);
-    module_builder.define_builtin("u8", BuiltinType::U8);
-    module_builder.define_builtin("i16", BuiltinType::I16);
-    module_builder.define_builtin("u16", BuiltinType::U16);
-    module_builder.define_builtin("i32", BuiltinType::I32);
-    module_builder.define_builtin("u32", BuiltinType::U32);
-    module_builder.define_builtin("i64", BuiltinType::I64);
-    module_builder.define_builtin("u64", BuiltinType::U64);
-    module_builder.define_builtin("f32", BuiltinType::F32);
-    module_builder.define_builtin("f64", BuiltinType::F64);
-    module_builder.define_builtin("bool", BuiltinType::Bool);
-    module_builder.define_builtin("str", BuiltinType::String);
-    module_builder.lower_stmt(&ast.root);
-
-    IrNode::Module {
-        nodes: module_builder.nodes,
-        functions: module_builder.functions,
-        globals: module_builder.globals,
     }
 }

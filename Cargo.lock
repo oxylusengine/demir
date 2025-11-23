@@ -7,7 +7,7 @@ name = "ast"
 version = "1.0.0"
 dependencies = [
  "core",
- "ir",
+ "lexer",
 ]
 
 [[package]]
@@ -30,7 +30,6 @@ dependencies = [
  "codegen",
  "core",
  "ir",
- "parser",
  "sema",
  "vm",
 ]
@@ -39,21 +38,13 @@ dependencies = [
 name = "ir"
 version = "1.0.0"
 dependencies = [
+ "ast",
  "core",
 ]
 
 [[package]]
 name = "lexer"
 version = "1.0.0"
-
-[[package]]
-name = "parser"
-version = "1.0.0"
-dependencies = [
- "ast",
- "core",
- "lexer",
-]
 
 [[package]]
 name = "runtime"

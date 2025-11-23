@@ -1,5 +1,6 @@
-use ast::{AssignmentKind, BinaryOp, RangeKind};
 use lexer::token::Token;
+
+use crate::{AssignmentKind, BinaryOp, RangeKind};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum Precedence {

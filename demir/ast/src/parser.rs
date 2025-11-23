@@ -1,29 +1,33 @@
 use core::types::Identifier;
 
-use ast::{AST, Attrib, Expression, ExpressionId, FunctionParam, InfixOperator, Literal, Statement};
 use lexer::{
-    lexer::Lexer,
+    Lexer,
     token::{Location, Token},
 };
 
 use crate::{
+    AST,
+    Attrib,
+    Expression,
+    ExpressionId,
+    FunctionParam,
+    InfixOperator,
+    Literal,
+    Statement,
     error::ParseError,
     precedence::{Precedence, token_to_assignment_kind, token_to_binary_op, token_to_precedence, token_to_range_kind},
 };
 
-mod error;
-mod precedence;
+pub type ParseResult<T> = Result<T, ParseError>;
 
-type ParseResult<T> = Result<T, ParseError>;
-
-struct Parser<'a> {
+pub struct Parser<'a> {
     lexer: Lexer<'a>,
     peeked_token: Option<(Token<'a>, Location)>,
     expressions: Vec<Expression>,
 }
 
 impl<'a> Parser<'a> {
-    fn new(buffer_view: &'a str) -> Self {
+    pub fn new(buffer_view: &'a str) -> Self {
         Self {
             lexer: Lexer::new(buffer_view),
             peeked_token: None,
@@ -38,7 +42,7 @@ impl<'a> Parser<'a> {
         expr_id
     }
 
-    fn parse(&mut self) -> ParseResult<AST> {
+    pub fn parse(&mut self) -> ParseResult<AST> {
         let mut statements = Vec::new();
         while !self.peek_is(Token::Eof) {
             statements.push(self.parse_single_stmt()?);
@@ -477,9 +481,4 @@ impl<'a> Parser<'a> {
             _ => Ok((token, location)),
         }
     }
-}
-
-pub fn parse(buffer_view: &str) -> ParseResult<AST> {
-    let mut parser = Parser::new(buffer_view);
-    parser.parse()
 }
