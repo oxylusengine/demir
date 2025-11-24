@@ -102,6 +102,11 @@ pub enum Expression {
         callee: ExpressionId,
         parameters: Vec<ExpressionId>,
     },
+    Reference {
+        referent: ExpressionId,
+        is_mutable: bool,
+    },
+    Dereference(ExpressionId),
 }
 
 pub type ExpressionId = usize;

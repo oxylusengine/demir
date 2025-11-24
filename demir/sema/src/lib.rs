@@ -233,6 +233,18 @@ impl<'a> SemanticAnalyzer<'a> {
                     _ => Err(SemaError::not_callable()),
                 }
             },
+
+            Expression::Reference { referent, is_mutable: _ /* TODO */ } => {
+                // TODO: We need better analyzing here
+                let (referent_symbol, referent_ty) = self.check_expr(referent)?;
+
+                Ok((referent_symbol, BuiltinType::Pointer(Box::new(referent_ty))))
+            },
+
+            Expression::Dereference(operand) => {
+                todo!()
+            },
+
         }?;
 
         self.annotate_ty(expr_id, ty.clone());

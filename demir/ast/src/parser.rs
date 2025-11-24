@@ -356,6 +356,7 @@ impl<'a> Parser<'a> {
     fn parse_prefix_expr(&mut self) -> ParseResult<ExpressionId> {
         let (token, location) = self.peek().ok_or(ParseError::end_of_file())?;
         match token {
+            Token::BitAnd => self.parse_reference_expr(),
             Token::Identifier(_) => self.parse_identifier_expr(),
             Token::IntegerLiteral(_)
             | Token::FloatingPointLiteral(_)
@@ -428,6 +429,18 @@ impl<'a> Parser<'a> {
         Ok(self.make_expr(Expression::CallFunction {
             callee: callee_expr,
             parameters: param_exprs,
+        }))
+    }
+
+    fn parse_reference_expr(&mut self) -> ParseResult<ExpressionId> {
+        self.expect_next(Token::BitAnd)?;
+
+        let is_mutable = self.peek_is(Token::Mut);
+        let referent = self.parse_prefix_expr()?;
+
+        Ok(self.make_expr(Expression::Reference {
+            referent,
+            is_mutable,
         }))
     }
 

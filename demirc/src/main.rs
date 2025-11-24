@@ -13,9 +13,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn println(v: str);
 
 fn main() {
-    for i in 0..10 {
-        println("Hello from external function!");
-    }
+    let a = 0;
+    let b = &a;
 }
 "#;
 
@@ -124,6 +123,7 @@ fn print_ir(nodes: &[IrNode], first_node_id: &IrNodeId) {
                         }
                         println!()
                     },
+                    BuiltinType::Pointer(to) => println!("pointer to {to}"),
                 }
             },
             IrNode::Variable { ty } => {

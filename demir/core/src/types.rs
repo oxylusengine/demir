@@ -18,6 +18,7 @@ pub enum BuiltinType {
         params: Vec<BuiltinType>,
         return_ty: Box<BuiltinType>,
     },
+    Pointer(Box<BuiltinType>)
 }
 
 #[derive(Debug, Clone)]
@@ -50,6 +51,7 @@ impl std::fmt::Display for BuiltinType {
             BuiltinType::Never => write!(f, "never"),
             BuiltinType::Unit => write!(f, "unit"),
             BuiltinType::Function { .. } => write!(f, "function"),
+            BuiltinType::Pointer(_) => write!(f, "pointer"),
         }
     }
 }
