@@ -112,6 +112,10 @@ pub enum Op {
     // Bitshift I64
     ShiftLeftI64 = 0x47,
     ShiftRightI64 = 0x48,
+
+    // References
+    PushReference = 0x49, // Operands: 2 bytes (local Id)
+    Dereference = 0x4A,
 }
 
 impl Op {
@@ -190,6 +194,8 @@ impl Op {
             0x46 => Some(Op::ShiftRightI32),
             0x47 => Some(Op::ShiftLeftI64),
             0x48 => Some(Op::ShiftRightI64),
+            0x49 => Some(Op::PushReference),
+            0x4A => Some(Op::Dereference),
             _ => None,
         }
     }

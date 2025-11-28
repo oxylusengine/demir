@@ -49,6 +49,11 @@ pub fn print_code(code: &[u8]) -> Result<(), TryFromSliceError> {
                 println!(" {}", val);
                 ip += 8;
             },
+            Op::PushReference => {
+                let local_id = u16::from_le_bytes(code[ip..ip + 2].try_into()?);
+                ip += 2;
+                println!(" local[{local_id}]");
+            },
             Op::LoadLocal | Op::StoreLocal => {
                 let bytes = &code[ip..ip + 2];
                 let slot = u16::from_le_bytes(bytes.try_into()?);
