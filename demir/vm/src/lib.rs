@@ -14,10 +14,15 @@ pub enum Value {
     F32(f32),
     F64(f64),
     String(u16),
+    Reference(u32),
 }
 
 impl Value {
     // Helper methods for type checking and extraction
+    pub fn from_call_and_local_id(call_frame_id: u16, local_id: u16) -> Self {
+        Value::Reference(((call_frame_id as u32) << 16) | (local_id as u32))
+    }
+
     pub fn as_i32(&self) -> Result<i32, String> {
         match self {
             Value::I32(v) => Ok(*v),
@@ -52,6 +57,13 @@ impl Value {
             Value::Null => false,
             Value::I32(0) | Value::I64(0) => false,
             _ => false,
+        }
+    }
+
+    pub fn as_reference(&self) -> Result<(u16, u16), String> {
+        match self {
+            Value::Reference(address) => Ok(((address >> 16) as u16, (address & 0xFFFF) as u16)),
+            _ => Err(format!("Expected reference address, got {:?}", self)),
         }
     }
 }
@@ -145,7 +157,7 @@ impl VM {
         self.external_functions.insert(id, Box::new(f));
     }
 
-    pub fn execute_function(&mut self, func_id: u16) -> Result<Value, String> {
+    pub fn execute_function(&mut self, func_id: u16) -> Result<(), String> {
         let func = self
             .functions
             .get(func_id as usize)
@@ -172,7 +184,7 @@ impl VM {
             f(&mut self.stack)?;
         }
 
-        Ok(self.stack.pop().unwrap_or(Value::Never))
+        Ok(())
     }
 
     fn execute_op(&mut self) -> Result<(), String> {
@@ -217,6 +229,21 @@ impl VM {
             Op::PushString => {
                 let str_id = self.read_i16()?;
                 self.stack.push(Value::String(str_id as u16));
+            },
+            Op::PushReference => {
+                let local_id = self.read_u16()?;
+                let call_frame_id = (self.call_frames.len() - 1) as u16;
+                self.stack.push(Value::from_call_and_local_id(call_frame_id, local_id));
+            },
+            Op::Dereference => {
+                let (call_frame_id, local_id) = self.stack.pop()?.as_reference()?;
+                let local = self
+                    .call_frames
+                    .get(call_frame_id as usize)
+                    .ok_or("Dereferencing invalid call stack".to_string())?
+                    .get_local(local_id)
+                    .ok_or("Dereferencing invalid local".to_string())?;
+                self.stack.push(local.clone());
             },
             Op::AddI32 => {
                 let b = self.stack.pop()?.as_i32()?;

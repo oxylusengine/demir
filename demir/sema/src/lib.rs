@@ -102,6 +102,10 @@ impl<'a> SemanticAnalyzer<'a> {
                     }
                 },
             },
+            Expression::Reference { referent, .. } => {
+                let underlying_ty = self.resolve_type_expr(referent)?;
+                Ok(BuiltinType::Pointer(Box::new(underlying_ty)))
+            },
             _ => Err(SemaError::type_mismatch("a type", "an expression")),
         }?;
 
@@ -115,10 +119,12 @@ impl<'a> SemanticAnalyzer<'a> {
         match expr {
             Expression::Identifier(_) => Ok(()),
             Expression::Literal(_) => Err(SemaError::cannot_assign("a literal")),
-            Expression::Assign { .. } => panic!(), // What?
+            Expression::Assign { .. } => Err(SemaError::cannot_assign("an assignment")),
             Expression::Binary { .. } => Err(SemaError::cannot_assign("a binary op")),
             Expression::CallFunction { .. } => Err(SemaError::cannot_assign("a function call")),
             Expression::Range { .. } => Err(SemaError::cannot_assign("a range")),
+            Expression::Reference { .. } => Err(SemaError::cannot_assign("a reference")),
+            Expression::Dereference { .. } => Err(SemaError::cannot_assign("a dereference")),
         }
     }
 
@@ -233,6 +239,31 @@ impl<'a> SemanticAnalyzer<'a> {
                     _ => Err(SemaError::not_callable()),
                 }
             },
+
+            Expression::Reference {
+                referent,
+                is_mutable: _, // TODO
+            } => {
+                let referent_expr = self.ast.get_expr(referent).ok_or(SemaError::unknown())?;
+                if !matches!(referent_expr, Expression::Identifier(_)) {
+                    return Err(SemaError::type_mismatch("an identifier", referent_expr));
+                }
+
+                let (referent_symbol, referent_ty) = self.check_expr(referent)?;
+                Ok((referent_symbol, BuiltinType::Pointer(Box::new(referent_ty))))
+            },
+
+            Expression::Dereference(referent) => {
+                let (referent_symbol, referent_ty) = self.check_expr(referent)?;
+                if !matches!(referent_ty, BuiltinType::Pointer(_)) {
+                    return Err(SemaError::type_mismatch("a pointer", referent_ty));
+                }
+
+                match referent_ty {
+                    BuiltinType::Pointer(ptr_ty) => Ok((referent_symbol, *ptr_ty)),
+                    _ => return Err(SemaError::undefined_var(referent_ty)),
+                }
+            },
         }?;
 
         self.annotate_ty(expr_id, ty.clone());
@@ -343,7 +374,7 @@ impl<'a> SemanticAnalyzer<'a> {
                     },
                 };
 
-                if !is_assignable(&resolved_ty) {
+                if !is_assignable(&resolved_ty) && !matches!(resolved_ty, BuiltinType::String) {
                     return Err(SemaError::cannot_assign_to(resolved_ty, "to a variable"));
                 }
 

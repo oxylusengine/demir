@@ -356,6 +356,8 @@ impl<'a> Parser<'a> {
     fn parse_prefix_expr(&mut self) -> ParseResult<ExpressionId> {
         let (token, location) = self.peek().ok_or(ParseError::end_of_file())?;
         match token {
+            Token::BitAnd => self.parse_reference_expr(),
+            Token::Mul => self.parse_dereference_expr(),
             Token::Identifier(_) => self.parse_identifier_expr(),
             Token::IntegerLiteral(_)
             | Token::FloatingPointLiteral(_)
@@ -429,6 +431,23 @@ impl<'a> Parser<'a> {
             callee: callee_expr,
             parameters: param_exprs,
         }))
+    }
+
+    fn parse_reference_expr(&mut self) -> ParseResult<ExpressionId> {
+        self.expect_next(Token::BitAnd)?;
+
+        let is_mutable = self.peek_is(Token::Mut);
+        let referent = self.parse_identifier_expr()?;
+
+        Ok(self.make_expr(Expression::Reference { referent, is_mutable }))
+    }
+
+    fn parse_dereference_expr(&mut self) -> ParseResult<ExpressionId> {
+        self.expect_next(Token::Mul)?;
+
+        let referent = self.parse_identifier_expr()?;
+
+        Ok(self.make_expr(Expression::Dereference(referent)))
     }
 
     fn parse_attributes(&mut self) -> ParseResult<Attrib> {

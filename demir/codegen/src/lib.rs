@@ -254,6 +254,19 @@ impl CodeGenerator {
                     _ => panic!(),
                 }
             },
+            IrNode::Pointer { variable_id } => {
+                let local_id = *generator.local_slots.get(variable_id).unwrap();
+                self.emit_pointer(local_id);
+                generator.mark_pushed(node_id);
+            },
+            IrNode::Dereference { ptr, .. } => {
+                let local_id = *generator.local_slots.get(ptr).unwrap();
+                self.emit_load_local(local_id);
+
+                self.emit(Op::Dereference);
+                generator.mark_popped(ptr);
+                generator.mark_pushed(node_id);
+            },
             IrNode::Add { ty, lhs, rhs } => {
                 emit_binary!(self, emit_add, ty, lhs, rhs, nodes, generator, node_id);
             },
@@ -580,6 +593,11 @@ impl CodeGenerator {
     fn emit_store_local(&mut self, slot: u16) {
         self.emit(Op::StoreLocal);
         self.code.extend(slot.to_le_bytes());
+    }
+
+    fn emit_pointer(&mut self, local_id: u16) {
+        self.emit(Op::PushReference);
+        self.code.extend(local_id.to_le_bytes());
     }
 
     fn emit_call(&mut self, func_id: u16, arg_count: u8) {

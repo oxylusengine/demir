@@ -457,6 +457,18 @@ impl<'a> IrModuleBuilder<'a> {
                     args,
                 })
             },
+            Expression::Reference { referent, .. } => {
+                let variable_id = self.lower_lvalue(referent)?;
+                self.emit_instr(IrNode::Pointer { variable_id })
+            },
+            Expression::Dereference(referent) => {
+                let lvalue_id = self.lower_lvalue(referent)?;
+                let ty_node_id = self.lower_type(ty);
+                self.emit_instr(IrNode::Dereference {
+                    ty: ty_node_id,
+                    ptr: lvalue_id,
+                })
+            },
         }
     }
 

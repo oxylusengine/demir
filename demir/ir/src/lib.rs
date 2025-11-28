@@ -166,6 +166,13 @@ pub enum IrNode {
         callee: IrNodeId,
         args: Vec<IrNodeId>,
     },
+    Pointer {
+        variable_id: IrNodeId,
+    },
+    Dereference {
+        ty: IrNodeId,
+        ptr: IrNodeId,
+    },
 }
 
 pub type IrNodeId = usize;

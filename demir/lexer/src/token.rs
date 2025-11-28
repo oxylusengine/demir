@@ -21,6 +21,7 @@ pub enum Token<'a> {
     Break,
     For,
     In,
+    Mut,
 
     /// Punctuators - Single character
     Equal, // =
@@ -100,6 +101,7 @@ impl<'a> Token<'a> {
             "break" => Token::Break,
             "for" => Token::For,
             "in" => Token::In,
+            "mut" => Token::Mut,
             _ => Token::Identifier(ident),
         }
     }
@@ -126,6 +128,7 @@ impl std::fmt::Display for Token<'_> {
             Token::Break => write!(f, "break"),
             Token::For => write!(f, "for"),
             Token::In => write!(f, "in"),
+            Token::Mut => write!(f, "mut"),
 
             // Single character punctuators
             Token::Equal => write!(f, "="),

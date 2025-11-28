@@ -102,6 +102,26 @@ pub enum Expression {
         callee: ExpressionId,
         parameters: Vec<ExpressionId>,
     },
+    Reference {
+        referent: ExpressionId,
+        is_mutable: bool,
+    },
+    Dereference(ExpressionId),
+}
+
+impl std::fmt::Display for Expression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Expression::Literal(_) => write!(f, "literal"),
+            Expression::Identifier(_) => write!(f, "identifier"),
+            Expression::Assign { .. } => write!(f, "assign"),
+            Expression::Binary { .. } => write!(f, "binary"),
+            Expression::Range { .. } => write!(f, "range"),
+            Expression::CallFunction { .. } => write!(f, "function call"),
+            Expression::Reference { .. } => write!(f, "reference"),
+            Expression::Dereference(_) => write!(f, "dereference"),
+        }
+    }
 }
 
 pub type ExpressionId = usize;

@@ -12,10 +12,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 @external
 fn println(v: str);
 
+fn take_ref(ref: &str) {
+    println(*ref);
+}
+
 fn main() {
-    for i in 0..10 {
-        println("Hello from external function!");
-    }
+    let a = "hello";
+    take_ref(&a);
+
+    let b = &a;
+    println(*b);
 }
 "#;
 
@@ -52,18 +58,15 @@ fn main() {
     vm.define_external(0, |stack| {
         let value = stack.pop()?;
         if let Value::String(str_id) = value {
-            println!("{}", stack.string(str_id).expect("Cannot find string id"));
+            println!("'{}'", stack.string(str_id).expect("Cannot find string id"));
         }
 
         Ok(())
     });
 
-    let value = match vm.execute_function(1) {
-        Ok(value) => value,
-        Err(e) => panic!("{}", e),
-    };
-
-    println!("VM eval: {:?}", value);
+    if let Err(e) = vm.execute_function(2) {
+        panic!("{}", e)
+    }
 
     Ok(())
 }
@@ -124,6 +127,7 @@ fn print_ir(nodes: &[IrNode], first_node_id: &IrNodeId) {
                         }
                         println!()
                     },
+                    BuiltinType::Pointer(to) => println!("pointer to {to}"),
                 }
             },
             IrNode::Variable { ty } => {
@@ -233,8 +237,8 @@ fn print_ir(nodes: &[IrNode], first_node_id: &IrNodeId) {
                 starter_block,
             } => {
                 println!("%{} = Function %{}", node_id, ty);
-                node_stack.extend_from_slice(params);
                 node_stack.push(*starter_block);
+                node_stack.extend_from_slice(params);
             },
             IrNode::FunctionParam { ty } => {
                 println!("%{node_id} = FunctionParameter %{ty}");
@@ -245,6 +249,12 @@ fn print_ir(nodes: &[IrNode], first_node_id: &IrNodeId) {
                     print!(" %{arg}");
                 }
                 println!();
+            },
+            IrNode::Pointer { variable_id } => {
+                println!("%{node_id} = Pointer %{variable_id}");
+            },
+            IrNode::Dereference { ty, ptr } => {
+                println!("%{node_id} = Deref %{ty} %{ptr}");
             },
         }
     }
