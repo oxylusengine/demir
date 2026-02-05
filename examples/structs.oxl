@@ -1,0 +1,18 @@
+MyStruct: struct {
+  foo: i32 = 0;
+}
+
+increment: fn(self: mut MyStruct, by: i32) -> i32 {
+  self.foo += by;
+
+  return self.foo;
+}
+
+main: fn() -> i32 {
+  a: MyStruct;      // immutable, MyStruct (default initialized)
+  b: mut MyStruct;  // mutable, MyStruct (default initialized)
+  c: i32 = 0;       // immutable, i32
+  d := 0;           // mutable, i32
+
+  b.increment(23);
+}
