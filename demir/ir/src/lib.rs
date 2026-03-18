@@ -1,10 +1,11 @@
-use core::types::BuiltinType;
+use core::types::{BuiltinType, Identifier};
 
 use ast::AST;
 
 use crate::ast_lowering::IrModuleBuilder;
 
 pub mod ast_lowering;
+pub mod disasm;
 
 #[derive(Debug, Clone)]
 pub enum IrNode {
@@ -153,10 +154,12 @@ pub enum IrNode {
     ExternalFunction {
         ty: IrNodeId,
         params: Vec<IrNodeId>,
+        name: Identifier,
     },
     Function {
         ty: IrNodeId,
         params: Vec<IrNodeId>,
+        name: Identifier,
         starter_block: IrNodeId,
     },
     FunctionParam {
@@ -172,6 +175,10 @@ pub enum IrNode {
     Dereference {
         ty: IrNodeId,
         ptr: IrNodeId,
+    },
+    Decoration {
+        dst: IrNodeId,
+        kind: IrDecorationKind,
     },
 }
 
@@ -190,6 +197,19 @@ pub enum IrConstant {
 
 impl IrConstant {
     pub fn from_bool(b: bool) -> Self { if b { IrConstant::True } else { IrConstant::False } }
+}
+
+#[derive(Debug, Clone)]
+pub enum IrDecorationKind {
+    Name(String),
+}
+
+impl std::fmt::Display for IrDecorationKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Name(v) => write!(f, "Name \"{v}\""),
+        }
+    }
 }
 
 pub fn lower_ast(ast: AST) -> IrNode {

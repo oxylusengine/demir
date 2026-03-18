@@ -26,6 +26,7 @@ pub struct Module {
     pub magic: [u8; 4],
     pub version: u16,
     pub strings: Vec<String>,
+    pub function_names: Vec<String>,
     pub functions: Vec<CompiledFunction>,
     pub code: Vec<u8>,
 }
@@ -63,7 +64,8 @@ impl FunctionGenerator {
 
 pub struct CodeGenerator {
     functions: Vec<CompiledFunction>,
-    func_slots: HashMap<IrNodeId, u16>,
+    function_names: Vec<String>,
+    function_slots: HashMap<IrNodeId, u16>,
     marked_jumps: Vec<MarkedJump>,
     label_offsets: HashMap<IrNodeId, u32>,
     strings: Vec<String>,
@@ -74,7 +76,8 @@ impl CodeGenerator {
     pub fn new() -> Self {
         Self {
             functions: Vec::new(),
-            func_slots: HashMap::new(),
+            function_names: Vec::new(),
+            function_slots: HashMap::new(),
             marked_jumps: Vec::new(),
             label_offsets: HashMap::new(),
             strings: Vec::new(),
@@ -86,7 +89,7 @@ impl CodeGenerator {
         match ir_module {
             IrNode::Module { nodes, functions, .. } => {
                 for (next_func_slot, func_id) in (0_u16..).zip(functions.iter()) {
-                    self.func_slots.insert(*func_id, next_func_slot);
+                    self.function_slots.insert(*func_id, next_func_slot);
                 }
 
                 for func_id in functions {
@@ -99,6 +102,7 @@ impl CodeGenerator {
                     magic: *b"EMIR",
                     version: 1,
                     strings: self.strings.clone(),
+                    function_names: self.function_names.clone(),
                     functions: self.functions.clone(),
                     code: self.code.clone(),
                 }
@@ -112,7 +116,9 @@ impl CodeGenerator {
 
         let func_node = &nodes[*func_id];
         match func_node {
-            IrNode::Function { starter_block, .. } => {
+            IrNode::Function {
+                starter_block, name, ..
+            } => {
                 let mut generator = FunctionGenerator {
                     param_count: 0,
                     local_slots: HashMap::new(),
@@ -141,21 +147,25 @@ impl CodeGenerator {
                 }
 
                 self.functions.push(CompiledFunction {
-                    id: *self.func_slots.get(func_id).unwrap_or(&u16::MAX),
+                    id: *self.function_slots.get(func_id).unwrap_or(&u16::MAX),
                     address,
                     param_count: generator.param_count,
                     local_count: generator.next_local_slot,
                     is_external: false,
                 });
+
+                self.function_names.push(name.0.clone());
             },
-            IrNode::ExternalFunction { params, .. } => {
+            IrNode::ExternalFunction { params, name, .. } => {
                 self.functions.push(CompiledFunction {
-                    id: *self.func_slots.get(func_id).unwrap_or(&u16::MAX),
+                    id: *self.function_slots.get(func_id).unwrap_or(&u16::MAX),
                     address,
                     param_count: params.len() as u8,
                     local_count: params.len() as u16,
                     is_external: true,
                 });
+
+                self.function_names.push(name.0.clone());
             },
             _ => panic!(),
         }
@@ -362,10 +372,11 @@ impl CodeGenerator {
                     self.generate_instr(nodes, arg_id, generator);
                 }
 
-                let callee_id = *self.func_slots.get(callee).unwrap();
+                let callee_id = *self.function_slots.get(callee).unwrap();
                 self.emit_call(callee_id, args.len() as u8);
                 generator.mark_pushed(node_id);
             },
+            IrNode::Decoration { .. } => {},
             IrNode::Variable { .. }
             | IrNode::ExternalFunction { .. }
             | IrNode::Function { .. }

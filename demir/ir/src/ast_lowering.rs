@@ -110,12 +110,14 @@ impl<'a> IrModuleBuilder<'a> {
                     self.make_node(IrNode::Function {
                         ty: return_ty_id,
                         params: Vec::default(),
+                        name: identifier.clone(),
                         starter_block: IrNodeId::MAX,
                     })
                 } else {
                     self.make_node(IrNode::ExternalFunction {
                         ty: return_ty_id,
                         params: Vec::default(),
+                        name: identifier.clone(),
                     })
                 };
 

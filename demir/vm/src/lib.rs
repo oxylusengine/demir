@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap};
 
 use codegen::{CompiledFunction, Module, opcode::Op};
 
@@ -112,6 +112,7 @@ pub struct VM {
     stack: VMStack,
     functions: Vec<CompiledFunction>,
     external_functions: HashMap<u16, Box<ExternalFunction>>,
+    function_names: Vec<String>,
     code: Vec<u8>,
     call_frames: Vec<CallFrame>,
     ip: usize,
@@ -142,6 +143,7 @@ impl VM {
             state: State::Executing,
             functions: module.functions,
             external_functions: HashMap::new(),
+            function_names: module.function_names,
             stack: VMStack::new(module.strings),
             code: module.code,
             call_frames: Vec::new(),
@@ -150,11 +152,20 @@ impl VM {
         }
     }
 
-    pub fn define_external<F>(&mut self, id: u16, f: F)
+    pub fn find_function(&self, name: &str) -> Option<u16> {
+        self.function_names
+            .iter()
+            .position(|cur_name| *cur_name == name)
+            .map(|id| id as u16)
+    }
+
+    pub fn define_external<F>(&mut self, name: &str, f: F)
     where
         F: Fn(&mut VMStack) -> Result<(), String> + 'static,
     {
-        self.external_functions.insert(id, Box::new(f));
+        self.find_function(name).map(|id| {
+            self.external_functions.insert(id as u16, Box::new(f));
+        });
     }
 
     pub fn execute_function(&mut self, func_id: u16) -> Result<(), String> {

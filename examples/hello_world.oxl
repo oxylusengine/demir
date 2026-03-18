@@ -1,3 +1,8 @@
-main(): fn -> i32 {
-  println("hello world");
+@external
+fn printf(v: str);
+
+fn main() -> i32 {
+    for v in 0..10 {
+        printf("hello");
+    }
 }
