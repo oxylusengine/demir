@@ -257,9 +257,24 @@ impl CodeGenerator {
                         let slot = *generator.local_slots.get(dst).unwrap();
                         self.emit_store_local(slot);
                     },
-                    IrNode::Load { variable, .. } => {
-                        let slot = *generator.local_slots.get(variable).unwrap();
-                        self.emit_store_local(slot);
+                    IrNode::Load { ty, variable, .. } => {
+                        match &nodes[*ty] {
+                            IrNode::Type(ty) => match ty {
+                                BuiltinType::Pointer(_) => {
+                                    if !generator.is_on_stack(dst) {
+                                        self.generate_instr(nodes, dst, generator);
+                                    }
+                                    self.emit(Op::StoreReference);
+                                    generator.mark_popped(dst);
+                                    generator.mark_pushed(node_id);
+                                },
+                                _ => {
+                                    let slot = *generator.local_slots.get(variable).unwrap();
+                                    self.emit_store_local(slot);
+                                },
+                            },
+                            _ => panic!(),
+                        }
                     },
                     _ => panic!(),
                 }

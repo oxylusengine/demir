@@ -1,4 +1,4 @@
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use codegen::{CompiledFunction, Module, opcode::Op};
 
@@ -181,11 +181,24 @@ impl VM {
                 frame.locals[i as usize] = arg;
             }
 
+            let func_address = func.address;
             self.call_frames.push(frame);
-            self.ip = func.address as usize;
+            self.ip = func_address as usize;
 
             while matches!(self.state, State::Executing) {
-                self.execute_op()?;
+                match self.execute_op() {
+                    Ok(_) => {},
+                    Err(message) => {
+                        println!(
+                            "Runtime error: {message}\nFrame: {} Function: 0x{:08X} Address: 0x{:08X}",
+                            self.call_frames.len() - 1,
+                            func_address,
+                            self.ip
+                        );
+                        self.state = State::Halted;
+                        break;
+                    },
+                }
             }
 
             if matches!(self.state, State::Halted) {
@@ -255,6 +268,14 @@ impl VM {
                     .get_local(local_id)
                     .ok_or("Dereferencing invalid local".to_string())?;
                 self.stack.push(local.clone());
+            },
+            Op::StoreReference => {
+                let value = self.stack.pop()?;
+                let (call_frame_id, local_id) = self.stack.pop()?.as_reference()?;
+                self.call_frames
+                    .get_mut(call_frame_id as usize)
+                    .ok_or("StoreReference: invalid call frame".to_string())?
+                    .set_local(local_id, value);
             },
             Op::AddI32 => {
                 let b = self.stack.pop()?.as_i32()?;

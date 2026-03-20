@@ -117,7 +117,8 @@ impl<'a> Parser<'a> {
                     self.expect_next(Token::Semicolon)?;
                     return Ok(Statement::Break);
                 },
-                Token::Identifier(_)
+                Token::Mul
+                | Token::Identifier(_)
                 | Token::IntegerLiteral(_)
                 | Token::FloatingPointLiteral(_)
                 | Token::StringLiteral(_) => return self.parse_expr_stmt(),

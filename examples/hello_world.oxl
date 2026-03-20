@@ -1,8 +1,17 @@
 @external
-fn printf(v: str);
+fn print(v: i32);
+
+fn fib_iter(n: i32) -> i32 {
+    var a = 0;
+    var b = 1;
+    for i in 0..n {
+        var tmp = b;
+        b = a + b;
+        a = tmp;
+    }
+    return a;
+}
 
 fn main() -> i32 {
-    for v in 0..10 {
-        printf("hello");
-    }
+    print(fib_iter(1000000));
 }

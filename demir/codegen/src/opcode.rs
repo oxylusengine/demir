@@ -116,6 +116,7 @@ pub enum Op {
     // References
     PushReference = 0x49, // Operands: 2 bytes (local Id)
     Dereference = 0x4A,
+    StoreReference = 0x4B,
 }
 
 impl Op {
@@ -196,6 +197,7 @@ impl Op {
             0x48 => Some(Op::ShiftRightI64),
             0x49 => Some(Op::PushReference),
             0x4A => Some(Op::Dereference),
+            0x4B => Some(Op::StoreReference),
             _ => None,
         }
     }

@@ -485,6 +485,7 @@ impl<'a> IrModuleBuilder<'a> {
                     _ => Some(node_id),
                 }
             },
+            Expression::Dereference(inner) => self.lower_expr(inner),
 
             // TODO:
             // Expression::StructFieldAccess { .. } => { ... }

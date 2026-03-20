@@ -118,13 +118,13 @@ impl<'a> SemanticAnalyzer<'a> {
         let expr = self.ast.get_expr(expr_id).ok_or(SemaError::unknown())?;
         match expr {
             Expression::Identifier(_) => Ok(()),
+            Expression::Dereference { .. } => Ok(()),
             Expression::Literal(_) => Err(SemaError::cannot_assign("a literal")),
             Expression::Assign { .. } => Err(SemaError::cannot_assign("an assignment")),
             Expression::Binary { .. } => Err(SemaError::cannot_assign("a binary op")),
             Expression::CallFunction { .. } => Err(SemaError::cannot_assign("a function call")),
             Expression::Range { .. } => Err(SemaError::cannot_assign("a range")),
             Expression::Reference { .. } => Err(SemaError::cannot_assign("a reference")),
-            Expression::Dereference { .. } => Err(SemaError::cannot_assign("a dereference")),
         }
     }
 
@@ -438,7 +438,18 @@ impl<'a> SemanticAnalyzer<'a> {
                     return Err(SemaError::redefinition(iter));
                 }
 
-                self.check_expr(range)?;
+                let (_, resolved_ty) = self.check_expr(range)?;
+                self.symbols.define(
+                    iter.clone(),
+                    (
+                        SymbolKind::Variable {
+                            identifier: iter.clone(),
+                            is_mutable: true,
+                        },
+                        resolved_ty,
+                    ),
+                );
+
                 self.check_stmt(body)?;
 
                 Ok(())

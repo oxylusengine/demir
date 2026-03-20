@@ -45,10 +45,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("=== VM ===");
     let mut vm = VM::new(module);
-    vm.define_external("printf", |stack| {
+    vm.define_external("print", |stack| {
         let value = stack.pop()?;
-        if let Value::String(str_id) = value {
-            println!("'{}'", stack.string(str_id).expect("Cannot find string id"));
+        if let Value::I32(v) = value {
+            println!("{v}");
         }
 
         Ok(())
